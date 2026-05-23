@@ -11,6 +11,21 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.tenant_service import (
+    load_tenant,
+    save_tenant,
+    load_tenant_by_admin_chat_id,
+    get_tenant_index,
+    add_tenant_index,
+    remove_tenant_index,
+    list_bots_by_tenant_id,
+    list_all_bots_by_tenant_id,
+    list_started_users_by_tenant_id,
+    list_started_users_by_tenant_id_for_admin,
+    recompute_tenant_today_started_user_count,
+    set_platform_tenant_blacklisted,
+    is_platform_tenant_blacklisted,
+)
 from app.routes.health import router as health_router
 from app.routes.platform import router as platform_router
 from app.routes.webhook import router as webhook_router
@@ -285,40 +300,7 @@ async def load_bot_by_bot_username(bot_username: str) -> Optional[dict]:
     bot_id = build_bot_id_from_bot_username(bot_username)
     return await load_bot(bot_id)
 
-async def list_bots_by_tenant_id(tenant_id: str) -> List[dict]:
-    start_ts = time.perf_counter()
-    bots = await list_bots_by_tenant_id_db(tenant_id, include_deleted=False)
-    logger.info(
-        "perf list_bots_by_tenant_id tenant_id=%s loaded=%s cost_ms=%s source=db",
-        tenant_id,
-        len(bots),
-        cost_ms(start_ts),
-    )
-    return bots
 
-
-async def list_all_bots_by_tenant_id(tenant_id: str) -> List[dict]:
-    start_ts = time.perf_counter()
-    bots = await list_bots_by_tenant_id_db(tenant_id, include_deleted=True)
-    logger.info(
-        "perf list_all_bots_by_tenant_id tenant_id=%s loaded=%s cost_ms=%s source=db",
-        tenant_id,
-        len(bots),
-        cost_ms(start_ts),
-    )
-    return bots
-
-
-async def list_started_users_by_tenant_id_for_admin(tenant_id: str) -> List[dict]:
-    started = time.perf_counter()
-    users = await list_started_users_by_tenant_id_db(tenant_id, include_deleted_bots=True)
-    logger.info(
-        "perf list_started_users_by_tenant_id_for_admin tenant_id=%s users=%s cost_ms=%s source=db",
-        tenant_id,
-        len(users),
-        cost_ms(started),
-    )
-    return users
 
 
 def get_today_ymd() -> str:
@@ -438,9 +420,6 @@ async def incr_tenant_stat(tenant_id: str, field: str, delta: int) -> None:
     finally:
         await release_short_lock(lock_key)
 
-
-async def recompute_tenant_today_started_user_count(tenant_id: str) -> None:
-    await refresh_tenant_today_started_user_count_db(tenant_id)
 
 
 def tenant_started_users_key(tenant_id: str) -> str:
@@ -991,17 +970,6 @@ async def pick_sender_bot_for_tenant(tenant_id: str) -> Optional[dict]:
     return await pick_default_bot_for_tenant(tenant_id)
 
 
-async def list_started_users_by_tenant_id(tenant_id: str) -> List[dict]:
-    started = time.perf_counter()
-    users = await list_started_users_by_tenant_id_db(tenant_id, include_deleted_bots=False)
-    logger.info(
-        "perf list_started_users_by_tenant_id tenant_id=%s users=%s cost_ms=%s source=db",
-        tenant_id,
-        len(users),
-        cost_ms(started),
-    )
-    return users
-
 
 async def list_started_users(bot_id: str) -> List[dict]:
     started = time.perf_counter()
@@ -1075,12 +1043,6 @@ async def get_platform_notice_target(message_id: int) -> Optional[dict]:
     return await redis_get_json(platform_tenant_notice_map_key(message_id))
 
 
-async def set_platform_tenant_blacklisted(tenant_id: str, value: bool) -> None:
-    await set_platform_tenant_blacklisted_db(tenant_id, value)
-
-
-async def is_platform_tenant_blacklisted(tenant_id: str) -> bool:
-    return await is_platform_tenant_blacklisted_db(tenant_id)
 
 
 async def set_bot_user_blacklisted(bot_id: str, user_id: int, value: bool) -> None:
@@ -1374,11 +1336,7 @@ async def redis_get_json(key: str) -> Optional[dict]:
 async def redis_set_json(key: str, value: dict, ttl_seconds: Optional[int] = None) -> None:
     await redis_set_json_db(key, value, ttl_seconds)
 
-async def load_tenant(tenant_id: str) -> Optional[dict]:
-    return await load_tenant_db(tenant_id)
 
-async def save_tenant(tenant: dict) -> None:
-    await save_tenant_db(tenant)
 
 async def load_bot(bot_id: str) -> Optional[dict]:
     return await load_bot_db(bot_id)
@@ -1386,21 +1344,8 @@ async def load_bot(bot_id: str) -> Optional[dict]:
 async def save_bot(bot: dict) -> None:
     await save_bot_db(bot)
 
-async def load_tenant_by_admin_chat_id(admin_chat_id: int) -> Optional[dict]:
-    return await load_tenant_by_admin_chat_id_db(admin_chat_id)
-
-async def get_tenant_index() -> List[str]:
-    return await get_tenant_index_db()
 
 
-async def add_tenant_index(tenant_id: str) -> None:
-    # 数据库版不需要维护 Redis tenant:index
-    return None
-
-
-async def remove_tenant_index(tenant_id: str) -> None:
-    # 数据库版不需要维护 Redis tenant:index
-    return None
 
 
 async def get_bot_index() -> List[str]:
