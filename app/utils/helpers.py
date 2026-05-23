@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional, Any
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from app.config import PLATFORM_ADMIN_CHAT_ID, PLATFORM_SECONDARY_ADMIN_CHAT_IDS
 
@@ -86,3 +87,7 @@ def build_user_link(user_id: int, username: str, display_name: str) -> str:
 def normalize_rate_action(action: str) -> str:
     s = str(action or "").strip().lower()
     return re.sub(r"[^a-z0-9:_-]", "_", s) or "unknown"
+
+
+def json_response(data: dict, status: int = 200) -> JSONResponse:
+    return JSONResponse(content=data, status_code=status)
