@@ -1,0 +1,350 @@
+import time
+from typing import Any, Optional
+
+from sqlalchemy import select, delete
+
+from app.storage.database import AsyncSessionLocal
+from app.storage.models import KVStore
+from app.utils.helpers import now_ms
+
+
+class DBRedisCompat:
+    """
+    用数据库模拟项目里还剩下的少量 Redis 用法：
+    get / set / delete / zadd / zcard / zremrangebyscore
+
+    注意：
+    - 这是为了平滑迁移，不是完整 Redis 实现。
+    - 只覆盖当前项目实际用到的方法。
+    """
+
+    async def get(self, key: str) -> Optional[str]:
+        now = now_ms()
+
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row:
+                return None
+
+            if row.expire_at_ms and int(row.expire_at_ms) < now:
+                await session.delete(row)
+                await session.commit()
+                return None
+
+            value = row.value or {}
+
+            if isinstance(value, dict):
+                if "__type" in value and value.get("__type") == "string":
+                    return str(value.get("value", ""))
+                if "value" in value and len(value) == 1:
+                    return str(value.get("value", ""))
+
+            return str(value)
+
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ex: Optional[int] = None,
+        nx: bool = False,
+        **kwargs,
+    ) -> bool:
+        expire_at_ms = 0
+        if ex:
+            expire_at_ms = now_ms() + int(ex) * 1000
+
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+
+            if nx and row:
+                if row.expire_at_ms and int(row.expire_at_ms) < now_ms():
+                    await session.delete(row)
+                    await session.flush()
+                    row = None
+                else:
+                    return False
+
+            payload = {
+                "__type": "string",
+                "value": str(value),
+            }
+
+            if row:
+                row.value = payload
+                row.expire_at_ms = expire_at_ms
+            else:
+                session.add(KVStore(
+                    key=key,
+                    value=payload,
+                    expire_at_ms=expire_at_ms,
+                ))
+
+            await session.commit()
+            return True
+
+    async def delete(self, *keys: str) -> int:
+        if not keys:
+            return 0
+
+        async with AsyncSessionLocal() as session:
+            stmt = delete(KVStore).where(KVStore.key.in_(list(keys)))
+            result = await session.execute(stmt)
+            await session.commit()
+            return int(result.rowcount or 0)
+
+    async def zadd(self, key: str, mapping: dict) -> int:
+        """
+        用 KVStore 保存 zset：
+        {
+          "__type": "zset",
+          "items": {"member": score}
+        }
+        """
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+
+            if row and row.value:
+                payload = dict(row.value or {})
+            else:
+                payload = {"__type": "zset", "items": {}}
+
+            items = dict(payload.get("items") or {})
+            added = 0
+
+            for member, score in (mapping or {}).items():
+                member = str(member)
+                if member not in items:
+                    added += 1
+                items[member] = float(score)
+
+            payload["__type"] = "zset"
+            payload["items"] = items
+
+            if row:
+                row.value = payload
+            else:
+                session.add(KVStore(
+                    key=key,
+                    value=payload,
+                    expire_at_ms=0,
+                ))
+
+            await session.commit()
+            return added
+
+    async def zremrangebyscore(self, key: str, min_score: Any, max_score: Any) -> int:
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row or not row.value:
+                return 0
+
+            payload = dict(row.value or {})
+            items = dict(payload.get("items") or {})
+
+            min_v = float(min_score)
+            max_v = float(max_score)
+
+            removed = 0
+            new_items = {}
+
+            for member, score in items.items():
+                score_f = float(score)
+                if min_v <= score_f <= max_v:
+                    removed += 1
+                else:
+                    new_items[member] = score_f
+
+            payload["items"] = new_items
+            row.value = payload
+
+            await session.commit()
+            return removed
+
+    async def zcard(self, key: str) -> int:
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row or not row.value:
+                return 0
+
+            payload = dict(row.value or {})
+            items = dict(payload.get("items") or {})
+            return len(items)
+
+    async def ttl(self, key: str) -> int:
+        """
+        模拟 Redis TTL：
+        - key 不存在返回 -2
+        - key 存在但无过期时间返回 -1
+        - key 存在且有过期时间返回剩余秒数
+        """
+        now = now_ms()
+
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row:
+                return -2
+
+            expire_at_ms = int(row.expire_at_ms or 0)
+
+            if expire_at_ms <= 0:
+                return -1
+
+            if expire_at_ms < now:
+                await session.delete(row)
+                await session.commit()
+                return -2
+
+            return max(0, int((expire_at_ms - now) / 1000))
+
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        expire_at_ms = now_ms() + int(seconds) * 1000
+
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row:
+                return False
+
+            row.expire_at_ms = expire_at_ms
+            await session.commit()
+            return True
+
+    async def incr(self, key: str, amount: int = 1) -> int:
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+
+            current = 0
+            expire_at_ms = 0
+
+            if row:
+                if row.expire_at_ms and int(row.expire_at_ms) < now_ms():
+                    await session.delete(row)
+                    await session.flush()
+                    row = None
+                else:
+                    payload = row.value or {}
+                    if isinstance(payload, dict):
+                        current = int(payload.get("value") or 0)
+                    else:
+                        current = int(payload or 0)
+                    expire_at_ms = int(row.expire_at_ms or 0)
+
+            new_value = current + int(amount)
+            payload = {
+                "__type": "string",
+                "value": str(new_value),
+            }
+
+            if row:
+                row.value = payload
+                row.expire_at_ms = expire_at_ms
+            else:
+                session.add(KVStore(
+                    key=key,
+                    value=payload,
+                    expire_at_ms=0,
+                ))
+
+            await session.commit()
+            return new_value
+
+    async def lpush(self, key: str, *values) -> int:
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+
+            if row and row.value:
+                payload = dict(row.value or {})
+            else:
+                payload = {
+                    "__type": "list",
+                    "items": [],
+                }
+
+            items = list(payload.get("items") or [])
+
+            for value in values:
+                items.insert(0, str(value))
+
+            payload["__type"] = "list"
+            payload["items"] = items
+
+            if row:
+                row.value = payload
+            else:
+                session.add(KVStore(
+                    key=key,
+                    value=payload,
+                    expire_at_ms=0,
+                ))
+
+            await session.commit()
+            return len(items)
+
+    async def lrange(self, key: str, start: int, end: int):
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row or not row.value:
+                return []
+
+            payload = dict(row.value or {})
+            items = list(payload.get("items") or [])
+
+            start = int(start)
+            end = int(end)
+
+            if end == -1:
+                return items[start:]
+
+            return items[start:end + 1]
+
+    async def lrem(self, key: str, count: int, value) -> int:
+        async with AsyncSessionLocal() as session:
+            row = await session.get(KVStore, key)
+            if not row or not row.value:
+                return 0
+
+            payload = dict(row.value or {})
+            items = list(payload.get("items") or [])
+
+            target = str(value)
+            count = int(count)
+            removed = 0
+
+            if count == 0:
+                new_items = []
+                for item in items:
+                    if item == target:
+                        removed += 1
+                    else:
+                        new_items.append(item)
+
+            elif count > 0:
+                new_items = []
+                for item in items:
+                    if item == target and removed < count:
+                        removed += 1
+                        continue
+                    new_items.append(item)
+
+            else:
+                reverse_items = list(reversed(items))
+                new_reverse = []
+                limit = abs(count)
+
+                for item in reverse_items:
+                    if item == target and removed < limit:
+                        removed += 1
+                        continue
+                    new_reverse.append(item)
+
+                new_items = list(reversed(new_reverse))
+
+            payload["items"] = new_items
+            row.value = payload
+
+            await session.commit()
+            return removed
+
+
+
+redis_client = DBRedisCompat()
