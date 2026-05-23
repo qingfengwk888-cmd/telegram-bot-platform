@@ -12,6 +12,7 @@ import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from app.routes.health import router as health_router
+from app.routes.platform import router as platform_router
 from app.telegram.api import (
     tg,
     telegram_raw,
@@ -194,6 +195,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
 app.include_router(health_router)
+app.include_router(platform_router)
 
 
 
@@ -5770,7 +5772,7 @@ async def handle_admin_message(msg: dict, bot: dict) -> None:
 
 
 
-@app.post("/platform/webhook")
+# route moved to app.routes.platform
 async def platform_webhook(request: Request):
     try:
         platform_bot_token = get_platform_bot_token()
