@@ -1,7 +1,11 @@
-import httpx
+import json
+import time
 from typing import Optional
 
+import httpx
+
 from app.core.logger import logger
+from app.utils.helpers import cost_ms, safe_json_dumps
 
 telegram_http_client: Optional[httpx.AsyncClient] = None
 
@@ -9,6 +13,7 @@ telegram_http_client: Optional[httpx.AsyncClient] = None
 def set_telegram_http_client(client: Optional[httpx.AsyncClient]) -> None:
     global telegram_http_client
     telegram_http_client = client
+
 
 async def telegram_raw(bot_token: str, method: str, payload: dict) -> dict:
     global telegram_http_client
@@ -36,11 +41,31 @@ async def telegram_raw(bot_token: str, method: str, payload: dict) -> dict:
     )
     return data
 
+
 async def tg(bot_token: str, method: str, payload: dict) -> dict:
     data = await telegram_raw(bot_token, method, payload)
     if not data.get("ok"):
+        description = str(data.get("description") or "")
+
+        if method == "answerCallbackQuery" and (
+            "query is too old" in description
+            or "query ID is invalid" in description
+            or "response timeout expired" in description
+        ):
+            logger.warning(
+                "ignore expired answerCallbackQuery error: %s",
+                json.dumps(data, ensure_ascii=False),
+            )
+            return data
+
         raise RuntimeError(f"Telegram API {method} failed: {json.dumps(data, ensure_ascii=False)}")
     return data
+
+
+# ============================================================
+# Tenant create / update
+# ============================================================
+
 
 async def register_bot_commands(bot_token: str) -> None:
     commands = [
@@ -60,6 +85,7 @@ async def register_bot_commands(bot_token: str) -> None:
             mask_bot_token(bot_token),
             json.dumps(data, ensure_ascii=False),
         )
+
 
 async def register_bot_commands_safe(bot_token: str) -> None:
     try:
