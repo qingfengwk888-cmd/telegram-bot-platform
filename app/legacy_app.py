@@ -11,6 +11,13 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.telegram.api import (
+    tg,
+    telegram_raw,
+    register_bot_commands,
+    register_bot_commands_safe,
+    set_telegram_http_client,
+)
 from app.telegram.formatters import (
     format_button_preview,
     format_all_tenants_text,
@@ -145,7 +152,7 @@ logger = logging.getLogger(APP_NAME)
 
 app = FastAPI(title=APP_NAME)
 # redis_client 已由 app.storage.redis_compat 提供
-telegram_http_client: Optional[httpx.AsyncClient] = None
+# telegram_http_client 已迁移到 app.telegram.api
 
 
 
@@ -157,6 +164,7 @@ async def lifespan(app: FastAPI):
         timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
     )
+    set_telegram_http_client(telegram_http_client)
 
     base_url = os.getenv("BASE_URL", "").strip()
 
@@ -181,6 +189,7 @@ async def lifespan(app: FastAPI):
         if telegram_http_client is not None:
             await telegram_http_client.aclose()
             telegram_http_client = None
+            set_telegram_http_client(None)
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
 
@@ -760,12 +769,6 @@ async def refresh_tenant_detail_message(
         "disable_web_page_preview": True,
         "reply_markup": build_tenant_detail_action_buttons(tenant_id, from_id),
     })
-
-async def register_bot_commands_safe(bot_token: str) -> None:
-    try:
-        await register_bot_commands(bot_token)
-    except Exception:
-        logger.exception("register_bot_commands_safe failed")
 
 
 async def notify_new_bot_connected(
@@ -1576,75 +1579,6 @@ async def refresh_lock_if_current(tenant_id: str, admin_chat_id: int, user_id: i
 # Telegram API
 # ============================================================
 
-async def register_bot_commands(bot_token: str) -> None:
-    commands = [
-        {
-            "command": "start",
-            "description": "恢复菜单",
-        }
-    ]
-
-    data = await telegram_raw(bot_token, "setMyCommands", {
-        "commands": commands
-    })
-
-    if not data.get("ok"):
-        logger.warning(
-            "setMyCommands failed bot=%s resp=%s",
-            mask_bot_token(bot_token),
-            json.dumps(data, ensure_ascii=False),
-        )
-
-async def telegram_raw(bot_token: str, method: str, payload: dict) -> dict:
-    global telegram_http_client
-
-    if telegram_http_client is None:
-        telegram_http_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-        )
-
-    start_ts = time.perf_counter()
-
-    resp = await telegram_http_client.post(
-        f"https://api.telegram.org/bot{bot_token}/{method}",
-        json=payload,
-    )
-    data = resp.json()
-
-    logger.info(
-        "perf telegram_raw method=%s status_code=%s ok=%s cost_ms=%s",
-        method,
-        resp.status_code,
-        data.get("ok"),
-        cost_ms(start_ts),
-    )
-    return data
-
-
-async def tg(bot_token: str, method: str, payload: dict) -> dict:
-    data = await telegram_raw(bot_token, method, payload)
-    if not data.get("ok"):
-        description = str(data.get("description") or "")
-
-        if method == "answerCallbackQuery" and (
-            "query is too old" in description
-            or "query ID is invalid" in description
-            or "response timeout expired" in description
-        ):
-            logger.warning(
-                "ignore expired answerCallbackQuery error: %s",
-                json.dumps(data, ensure_ascii=False),
-            )
-            return data
-
-        raise RuntimeError(f"Telegram API {method} failed: {json.dumps(data, ensure_ascii=False)}")
-    return data
-
-
-# ============================================================
-# Tenant create / update
-# ============================================================
 
 async def get_or_create_tenant_by_admin(
     admin_chat_id: int,
