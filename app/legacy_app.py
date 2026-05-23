@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.routes.health import router as health_router
 from app.telegram.api import (
     tg,
     telegram_raw,
@@ -192,6 +193,7 @@ async def lifespan(app: FastAPI):
             set_telegram_http_client(None)
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
+app.include_router(health_router)
 
 
 
@@ -5766,12 +5768,6 @@ async def handle_admin_message(msg: dict, bot: dict) -> None:
 # Internal API
 # ============================================================
 
-@app.get("/health")
-async def health():
-    return {
-        "ok": True,
-        "service": APP_NAME,
-    }
 
 
 @app.post("/platform/webhook")
