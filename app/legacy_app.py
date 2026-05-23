@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from app.routes.health import router as health_router
 from app.routes.platform import router as platform_router
 from app.routes.webhook import router as webhook_router
+from app.routes.internal import router as internal_router
 from app.telegram.api import (
     tg,
     telegram_raw,
@@ -198,6 +199,7 @@ app = FastAPI(title=APP_NAME, lifespan=lifespan)
 app.include_router(health_router)
 app.include_router(platform_router)
 app.include_router(webhook_router)
+app.include_router(internal_router)
 
 
 
@@ -5898,7 +5900,7 @@ async def bot_webhook(
         return json_response({"ok": False, "error": str(err)}, 500)
 
 
-@app.post("/internal/create-bot")
+# route moved to app.routes.internal
 async def internal_create_bot(
     request: Request,
     x_api_key: Optional[str] = Header(default=None),
@@ -6081,7 +6083,7 @@ async def internal_delete_tenant(
     return {"ok": True, "tenantId": tenant_id, "deleted": True}
 
 
-@app.post("/internal/setup-webhook")
+# route moved to app.routes.internal
 async def internal_setup_webhook(
     request: Request,
     x_api_key: Optional[str] = Header(default=None),
@@ -6116,7 +6118,7 @@ async def internal_setup_webhook(
     }
 
 
-@app.post("/internal/setup-platform-webhook")
+# route moved to app.routes.internal
 async def internal_setup_platform_webhook(
     request: Request,
     x_api_key: Optional[str] = Header(default=None),
