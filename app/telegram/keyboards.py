@@ -1,7 +1,7 @@
 from typing import List, Dict
 
-from app.utils.helpers import escape_html
 from app.config import PLATFORM_ADMIN_CHAT_ID, PLATFORM_SECONDARY_ADMIN_CHAT_IDS
+from app.utils.helpers import escape_html
 
 
 def is_primary_platform_admin(chat_id: int) -> bool:
@@ -10,6 +10,7 @@ def is_primary_platform_admin(chat_id: int) -> bool:
 
 def is_secondary_platform_admin(chat_id: int) -> bool:
     return int(chat_id) in PLATFORM_SECONDARY_ADMIN_CHAT_IDS
+
 
 def build_bot_pick_buttons(bots: List[dict], action: str) -> dict:
     items = []
@@ -42,6 +43,7 @@ def build_bot_pick_buttons(bots: List[dict], action: str) -> dict:
 
     return {"inline_keyboard": rows}
 
+
 def build_my_bots_action_buttons(bots: List[dict]) -> dict:
     rows = []
 
@@ -71,6 +73,7 @@ def build_my_bots_action_buttons(bots: List[dict]) -> dict:
 
     return {"inline_keyboard": rows}
 
+
 def build_button_flow_action_buttons() -> dict:
     return {
         "inline_keyboard": [
@@ -84,6 +87,7 @@ def build_button_flow_action_buttons() -> dict:
         ]
     }
 
+
 def build_global_broadcast_confirm_buttons() -> dict:
     return {
         "inline_keyboard": [[
@@ -91,6 +95,7 @@ def build_global_broadcast_confirm_buttons() -> dict:
             {"text": "❌ 取消", "callback_data": "platform_global_broadcast_cancel"},
         ]]
     }
+
 
 def build_global_broadcast_target_buttons() -> dict:
     return {
@@ -108,6 +113,7 @@ def build_global_broadcast_target_buttons() -> dict:
         ]
     }
 
+
 def build_modify_confirm_buttons() -> dict:
     return {
         "inline_keyboard": [
@@ -120,6 +126,7 @@ def build_modify_confirm_buttons() -> dict:
             ]
         ]
     }
+
 
 def build_my_bots_entry_buttons(bots: List[dict]) -> dict:
     items = []
@@ -150,6 +157,7 @@ def build_my_bots_entry_buttons(bots: List[dict]) -> dict:
 
     return {"inline_keyboard": rows}
 
+
 def build_single_bot_action_buttons(bot_id: str) -> dict:
     return {
         "inline_keyboard": [
@@ -168,6 +176,7 @@ def build_single_bot_action_buttons(bot_id: str) -> dict:
         ]
     }
 
+
 def build_button_manage_menu_buttons(bot_id: str) -> dict:
     return {
         "inline_keyboard": [
@@ -180,6 +189,7 @@ def build_button_manage_menu_buttons(bot_id: str) -> dict:
             ]
         ]
     }
+
 
 def build_button_delete_pick_buttons(bot_id: str, buttons: List[List[dict]]) -> dict:
     rows = []
@@ -208,6 +218,7 @@ def build_button_delete_pick_buttons(bot_id: str, buttons: List[List[dict]]) -> 
 
     return {"inline_keyboard": rows}
 
+
 def build_button_reply_map(buttons: List[List[dict]]) -> Dict[str, str]:
     result: Dict[str, str] = {}
     for row in buttons or []:
@@ -221,6 +232,7 @@ def build_button_reply_map(buttons: List[List[dict]]) -> Dict[str, str]:
             if text and reply:
                 result[text] = reply
     return result
+
 
 def build_profile_buttons(
     user_id: int,
@@ -249,6 +261,7 @@ def build_profile_buttons(
 
     return [buttons]
 
+
 def flatten_welcome_buttons(buttons: List[List[dict]]) -> List[dict]:
     result = []
     for row in buttons or []:
@@ -258,6 +271,7 @@ def flatten_welcome_buttons(buttons: List[List[dict]]) -> List[dict]:
             if isinstance(btn, dict):
                 result.append(btn)
     return result
+
 
 def rebuild_button_rows(flat_buttons: List[dict]) -> List[List[dict]]:
     rows = []
@@ -279,6 +293,7 @@ def rebuild_button_rows(flat_buttons: List[dict]) -> List[List[dict]]:
 
     return rows
 
+
 def build_remove_confirm_buttons(bot_id: str) -> dict:
     return {
         "inline_keyboard": [
@@ -288,6 +303,7 @@ def build_remove_confirm_buttons(bot_id: str) -> dict:
             ]
         ]
     }
+
 
 def build_platform_reply_keyboard_for_admin(chat_id: int) -> dict:
     rows = [
@@ -302,6 +318,7 @@ def build_platform_reply_keyboard_for_admin(chat_id: int) -> dict:
         "resize_keyboard": True,
         "is_persistent": True,
     }
+
 
 def build_bot_reply_keyboard(bot: dict) -> dict:
     buttons = bot.get("welcomeButtons") or []
@@ -335,6 +352,7 @@ def build_bot_reply_keyboard(bot: dict) -> dict:
         "is_persistent": True,
     }
 
+
 def build_platform_ad_menu_buttons() -> dict:
     return {
         "inline_keyboard": [
@@ -347,6 +365,7 @@ def build_platform_ad_menu_buttons() -> dict:
             ]
         ]
     }
+
 
 def build_platform_ad_pick_buttons(items: List[dict], action: str) -> dict:
     rows = []
@@ -369,6 +388,7 @@ def build_platform_ad_pick_buttons(items: List[dict], action: str) -> dict:
 
     return {"inline_keyboard": rows}
 
+
 def build_platform_reply_keyboard_for_tenant() -> dict:
     return {
         "keyboard": [
@@ -379,11 +399,92 @@ def build_platform_reply_keyboard_for_tenant() -> dict:
         "is_persistent": True,
     }
 
-def build_apply_approve_buttons(apply_id: str) -> List[List[dict]]:
-    return [[
-        {"text": "✅ 同意", "callback_data": f"apply:approve:{apply_id}"},
-        {"text": "❌ 拒绝", "callback_data": f"apply:reject:{apply_id}"},
-    ]]
+
+def build_admin_tenant_pick_buttons(tenants: List[dict]) -> dict:
+    rows = []
+
+    for t in tenants:
+        tenant_id = str(t.get("tenantId") or "").strip()
+        tenant_name = str(t.get("tenantName") or tenant_id).strip()
+
+        if not tenant_id:
+            continue
+
+        rows.append([{
+            "text": f"{tenant_name} | {tenant_id}",
+            "callback_data": f"admin_tenant:view:{tenant_id}"
+        }])
+
+    if not rows:
+        rows = [[{"text": "暂无可选租户", "callback_data": "noop"}]]
+
+    return {"inline_keyboard": rows}
+
+
+def build_admin_tenant_root_menu_buttons() -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "📈 按流量", "callback_data": "admin_tenant_menu:traffic"},
+                {"text": "📂 按分类", "callback_data": "admin_tenant_menu:category"},
+            ]
+        ]
+    }
+
+
+def build_admin_tenant_traffic_sort_buttons() -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "⬇️ 从高到低", "callback_data": "admin_tenant_sort:desc"},
+                {"text": "⬆️ 从低到高", "callback_data": "admin_tenant_sort:asc"},
+            ],
+            [
+                {"text": "⬅️ 返回上级", "callback_data": "admin_tenant_back:root"},
+            ]
+        ]
+    }
+
+
+def build_admin_tenant_category_buttons() -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "招商(本)", "callback_data": "admin_tenant_filter:category:local"},
+                {"text": "招商(外)", "callback_data": "admin_tenant_filter:category:external"},
+            ],
+            [
+                {"text": "其他", "callback_data": "admin_tenant_filter:category:other"},
+                {"text": "已拉黑", "callback_data": "admin_tenant_filter:category:blacklisted"},
+            ],
+            [
+                {"text": "⬅️ 返回上级", "callback_data": "admin_tenant_back:root"},
+            ]
+        ]
+    }
+
+
+def build_admin_tenant_pick_buttons_with_back(tenants: List[dict], back_to: str) -> dict:
+    rows = []
+
+    for t in tenants:
+        tenant_id = str(t.get("tenantId") or "").strip()
+        tenant_name = str(t.get("tenantName") or tenant_id).strip()
+
+        if not tenant_id:
+            continue
+
+        rows.append([{
+            "text": f"{tenant_name} | {tenant_id}",
+            "callback_data": f"admin_tenant:view:{tenant_id}"
+        }])
+
+    if not rows:
+        rows = [[{"text": "暂无可选租户", "callback_data": "noop"}]]
+
+    rows.append([{"text": "⬅️ 返回上级", "callback_data": back_to}])
+    return {"inline_keyboard": rows}
+
 
 def build_tenant_category_buttons(tenant_id: str) -> list:
     return [
@@ -397,6 +498,7 @@ def build_tenant_category_buttons(tenant_id: str) -> list:
             {"text": "解黑", "callback_data": f"tenant_black_toggle:unblack:{tenant_id}"},
         ]
     ]
+
 
 def build_tenant_detail_category_buttons(tenant_id: str) -> dict:
     return {
@@ -412,6 +514,7 @@ def build_tenant_detail_category_buttons(tenant_id: str) -> dict:
             ]
         ]
     }
+
 
 def build_tenant_detail_action_buttons(tenant_id: str, chat_id: int) -> dict:
     rows = [
@@ -432,6 +535,7 @@ def build_tenant_detail_action_buttons(tenant_id: str, chat_id: int) -> dict:
         ])
 
     return {"inline_keyboard": rows}
+
 
 def build_new_tenant_notice_buttons(tenant: dict) -> dict:
     tenant_id = str(tenant.get("tenantId") or "").strip()
@@ -467,6 +571,14 @@ def build_new_tenant_notice_buttons(tenant: dict) -> dict:
         ]
     }
 
+
+def build_apply_approve_buttons(apply_id: str) -> List[List[dict]]:
+    return [[
+        {"text": "✅ 同意", "callback_data": f"apply:approve:{apply_id}"},
+        {"text": "❌ 拒绝", "callback_data": f"apply:reject:{apply_id}"},
+    ]]
+
+
 def build_welcome_buttons(bot: dict) -> List[List[dict]]:
     buttons = bot.get("welcomeButtons") or []
     keyboard: List[List[dict]] = []
@@ -494,84 +606,3 @@ def build_welcome_buttons(bot: dict) -> List[List[dict]]:
                 keyboard.append(row_buttons)
 
     return keyboard
-
-def build_admin_tenant_pick_buttons(tenants: List[dict]) -> dict:
-    rows = []
-
-    for t in tenants:
-        tenant_id = str(t.get("tenantId") or "").strip()
-        tenant_name = str(t.get("tenantName") or tenant_id).strip()
-
-        if not tenant_id:
-            continue
-
-        rows.append([{
-            "text": f"{tenant_name} | {tenant_id}",
-            "callback_data": f"admin_tenant:view:{tenant_id}"
-        }])
-
-    if not rows:
-        rows = [[{"text": "暂无可选租户", "callback_data": "noop"}]]
-
-    return {"inline_keyboard": rows}
-
-def build_admin_tenant_root_menu_buttons() -> dict:
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "📈 按流量", "callback_data": "admin_tenant_menu:traffic"},
-                {"text": "📂 按分类", "callback_data": "admin_tenant_menu:category"},
-            ]
-        ]
-    }
-
-def build_admin_tenant_traffic_sort_buttons() -> dict:
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "⬇️ 从高到低", "callback_data": "admin_tenant_sort:desc"},
-                {"text": "⬆️ 从低到高", "callback_data": "admin_tenant_sort:asc"},
-            ],
-            [
-                {"text": "⬅️ 返回上级", "callback_data": "admin_tenant_back:root"},
-            ]
-        ]
-    }
-
-def build_admin_tenant_category_buttons() -> dict:
-    return {
-        "inline_keyboard": [
-            [
-                {"text": "招商(本)", "callback_data": "admin_tenant_filter:category:local"},
-                {"text": "招商(外)", "callback_data": "admin_tenant_filter:category:external"},
-            ],
-            [
-                {"text": "其他", "callback_data": "admin_tenant_filter:category:other"},
-                {"text": "已拉黑", "callback_data": "admin_tenant_filter:category:blacklisted"},
-            ],
-            [
-                {"text": "⬅️ 返回上级", "callback_data": "admin_tenant_back:root"},
-            ]
-        ]
-    }
-
-def build_admin_tenant_pick_buttons_with_back(tenants: List[dict], back_to: str) -> dict:
-    rows = []
-
-    for t in tenants:
-        tenant_id = str(t.get("tenantId") or "").strip()
-        tenant_name = str(t.get("tenantName") or tenant_id).strip()
-
-        if not tenant_id:
-            continue
-
-        rows.append([{
-            "text": f"{tenant_name} | {tenant_id}",
-            "callback_data": f"admin_tenant:view:{tenant_id}"
-        }])
-
-    if not rows:
-        rows = [[{"text": "暂无可选租户", "callback_data": "noop"}]]
-
-    rows.append([{"text": "⬅️ 返回上级", "callback_data": back_to}])
-    return {"inline_keyboard": rows}
