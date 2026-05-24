@@ -5,22 +5,25 @@ async def resolve_bot_for_callback_and_check_rate_limit(
     data: str,
     callback_id: str,
 ):
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.message_parse_service import extract_bot_id_from_callback_data
+    from app.services.bot_service import load_bot
+    from app.services.rate_limit_service import get_bot_user_rate_limit_status
 
     bot = None
-    bot_id = await legacy.extract_bot_id_from_callback_data(data)
+    bot_id = await extract_bot_id_from_callback_data(data)
 
     if bot_id:
-        bot = await legacy.load_bot(bot_id)
+        bot = await load_bot(bot_id)
         if bot:
-            limit_result = await legacy.get_bot_user_rate_limit_status(
+            limit_result = await get_bot_user_rate_limit_status(
                 bot_id=bot_id,
                 user_id=from_id,
                 action=f"callback:{data}",
             )
             if limit_result["blocked"]:
                 if limit_result["message"]:
-                    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+                    await tg(platform_bot_token, "answerCallbackQuery", {
                         "callback_query_id": callback_id,
                         "text": limit_result["message"],
                         "show_alert": True,
