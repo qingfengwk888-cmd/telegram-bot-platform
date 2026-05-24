@@ -36,6 +36,7 @@ async def refresh_tenant_detail_message(
     chat_id: int,
     message_id: int,
     tenant_id: str,
+    message: dict | None = None,
 ) -> None:
     from app.telegram.api import tg
     from app.services.tenant_service import (

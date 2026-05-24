@@ -20,7 +20,9 @@ async def try_handle_admin_tenant_view_callback(
         return False
 
     tenant_id = sanitize_tenant_id(tenant_view_match.group(1))
-    page = max(1, int(tenant_view_match.group(2) or 1))
+    page_raw = tenant_view_match.group(2)
+    page = max(1, int(page_raw or 1))
+    is_page_callback = page_raw is not None
     tenant = await load_tenant(tenant_id)
 
     if not tenant:
@@ -91,7 +93,7 @@ async def try_handle_admin_tenant_view_callback(
         "reply_markup": reply_markup,
     }
 
-    if page > 1 and message and message.get("chat", {}).get("id") and message.get("message_id"):
+    if is_page_callback and message and message.get("chat", {}).get("id") and message.get("message_id"):
         payload["chat_id"] = message["chat"]["id"]
         payload["message_id"] = message["message_id"]
         await tg(platform_bot_token, "editMessageText", payload)
