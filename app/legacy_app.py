@@ -350,6 +350,7 @@ from app.services.tenant_select_broadcast_callback_service import try_handle_ten
 from app.services.tenant_remove_confirm_callback_service import try_handle_tenant_remove_confirm_callback
 from app.services.bot_callback_session_required_service import try_handle_missing_bot_callback_session
 from app.services.bot_callback_unknown_action_service import answer_unknown_bot_callback_action
+from app.services.bot_remove_cancel_callback_service import try_handle_bot_remove_cancel_callback
 
 # ============================================================
 # Helpers
@@ -3041,15 +3042,12 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    if data == "bot_remove_cancel":
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "已取消",
-        })
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": "已取消移除操作。",
-        })
+    if await try_handle_bot_remove_cancel_callback(
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
 
     if await try_handle_bot_select_callback(
