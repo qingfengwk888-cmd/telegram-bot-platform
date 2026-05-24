@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.reply_service import (
+    reply_rate_limited_for_callback,
+    reply_rate_limited_for_message,
+)
 from app.services.stat_service import (
     incr_bot_stat,
     incr_tenant_stat,
@@ -698,28 +702,6 @@ async def refresh_tenant_latest_bot_id(tenant_id: str) -> None:
 
 
 
-
-
-
-async def reply_rate_limited_for_callback(bot: dict, callback_query_id: str, text: str) -> None:
-    await tg(bot["botToken"], "answerCallbackQuery", {
-        "callback_query_id": callback_query_id,
-        "text": text,
-        "show_alert": True,
-    })
-
-
-async def reply_rate_limited_for_message(bot: dict, chat_id: int, text: str) -> None:
-    await tg(bot["botToken"], "sendMessage", {
-        "chat_id": chat_id,
-        "text": text,
-    })
-
-
-
-# ============================================================
-# Redis storage
-# ============================================================
 
 
 
