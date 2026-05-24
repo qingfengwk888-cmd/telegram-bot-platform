@@ -9,17 +9,20 @@ async def try_handle_tenant_remove_confirm_callback(
     data: str,
     callback_id: str,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id
+    from app.services.tenant_service import load_tenant
+    from app.telegram.keyboards import build_remove_confirm_buttons
 
     m_remove = re.match(r"^tenant_remove:(.+)$", data)
     if not m_remove:
         return False
 
-    tenant_id = legacy.sanitize_tenant_id(m_remove.group(1))
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant_id = sanitize_tenant_id(m_remove.group(1))
+    tenant = await load_tenant(tenant_id)
 
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "机器人不存在",
             "show_alert": True,
@@ -27,7 +30,7 @@ async def try_handle_tenant_remove_confirm_callback(
         return True
 
     if int(tenant.get("adminChatId", 0)) != int(from_id):
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "你没有权限操作这个机器人",
             "show_alert": True,
@@ -37,15 +40,15 @@ async def try_handle_tenant_remove_confirm_callback(
     bot_username = str(((tenant.get("botInfo") or {}).get("username") or "")).strip()
     show_name = f"@{bot_username}" if bot_username else (tenant.get("tenantName") or tenant_id)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "请确认",
     })
 
-    await legacy.tg(platform_bot_token, "editMessageText", {
+    await tg(platform_bot_token, "editMessageText", {
         "chat_id": callback_query["message"]["chat"]["id"],
         "message_id": callback_query["message"]["message_id"],
         "text": f"确认移除机器人 {show_name} 吗？",
-        "reply_markup": legacy.build_remove_confirm_buttons(tenant_id),
+        "reply_markup": build_remove_confirm_buttons(tenant_id),
     })
     return True
