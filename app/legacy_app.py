@@ -6,37 +6,6 @@ import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, Header, Request
-from app.services.reply_service import (
-    reply_rate_limited_for_callback,
-    reply_rate_limited_for_message,
-)
-from app.services.stat_service import (
-    incr_bot_stat,
-    incr_tenant_stat,
-)
-from app.services.lock_service import (
-    acquire_short_lock,
-    release_short_lock,
-    set_current_lock,
-    get_current_lock,
-    refresh_lock_if_current,
-)
-from app.core.keys import (
-    tenant_started_users_key,
-    bot_stat_lock_key,
-    tenant_stat_lock_key,
-    bot_started_users_key,
-    bot_start_alert_window_key,
-    bot_start_alert_cooldown_key,
-    tenant_latest_bot_id_key,
-    tenant_key,
-    bot_key,
-    bot_index_key,
-    tenant_bots_key,
-    tenant_all_bots_key,
-    tenant_index_key,
-    tenant_data_key,
-)
 from app.utils.helpers import (
     cost_ms,
     now_ms,
