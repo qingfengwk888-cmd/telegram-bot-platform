@@ -91,3 +91,33 @@ async def internal_list_applies(
         x_api_key=x_api_key,
         authorization=authorization,
     )
+
+
+@router.post("/internal/disable-tenant")
+async def internal_disable_tenant(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    from app.services.internal_tenant_admin_service import internal_disable_tenant as handle_internal_disable_tenant
+
+    return await handle_internal_disable_tenant(
+        request=request,
+        x_api_key=x_api_key,
+        authorization=authorization,
+    )
+
+
+@router.post("/internal/enable-tenant")
+async def internal_enable_tenant(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    from app.services.internal_tenant_admin_service import internal_enable_tenant as handle_internal_enable_tenant
+
+    return await handle_internal_enable_tenant(
+        request=request,
+        x_api_key=x_api_key,
+        authorization=authorization,
+    )
