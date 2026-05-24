@@ -25,62 +25,30 @@ from app.services.notice_service import (
     get_platform_notice_target,
 )
 from app.services.apply_service import (
-    generate_apply_id,
-    apply_key,
-    apply_index_key,
-    apply_session_key,
     load_apply,
-    save_apply,
     get_apply_index,
     load_apply_session,
     save_apply_session,
     clear_apply_session,
-    create_bot_from_apply,
-    apply_bot_update,
 )
 from app.services.ad_service import (
-    platform_ad_config_key,
-    load_platform_ad_config,
-    save_platform_ad_config,
-    delete_platform_ad_config,
     generate_ad_id,
-    normalize_ad_item,
 )
 from app.services.rate_limit_service import (
-    normalize_rate_action,
-    bot_user_rate_action_key,
-    bot_user_rate_mute_notice_key,
-    bot_user_rate_burst_key,
-    bot_user_rate_mute_key,
-    is_duplicate_update,
     get_bot_user_rate_limit_status,
 )
 from app.services.bot_service import (
-    load_bot_by_bot_username,
     list_started_users,
     load_bot,
-    save_bot,
-    get_bot_index,
-    add_bot_index,
-    remove_bot_index,
-    pick_default_bot_for_tenant,
     pick_sender_bot_for_tenant,
-    save_started_user_profile,
-    set_bot_user_blacklisted,
-    is_bot_user_blacklisted,
 )
 from app.services.tenant_service import (
     load_tenant,
     save_tenant,
     load_tenant_by_admin_chat_id,
     get_tenant_index,
-    add_tenant_index,
-    remove_tenant_index,
     list_bots_by_tenant_id,
-    list_all_bots_by_tenant_id,
     list_started_users_by_tenant_id,
-    list_started_users_by_tenant_id_for_admin,
-    recompute_tenant_today_started_user_count,
     set_platform_tenant_blacklisted,
     is_platform_tenant_blacklisted,
 )
