@@ -356,6 +356,7 @@ from app.services.bot_manage_back_to_list_callback_service import try_handle_bot
 from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
 from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
 from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
+from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 
 # ============================================================
 # Helpers
@@ -1786,23 +1787,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
         return
 
 
-    if data == "admin_tenant_broadcast_cancel":
-        await clear_apply_session(from_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "已取消群发",
-        })
-
-        if message.get("chat", {}).get("id") and message.get("message_id"):
-            try:
-                await tg(platform_bot_token, "editMessageReplyMarkup", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "reply_markup": {"inline_keyboard": []},
-                })
-            except Exception:
-                pass
+    if await try_handle_admin_tenant_broadcast_cancel_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        message=message,
+    ):
         return
 
     if data == "platform_global_broadcast_cancel":
