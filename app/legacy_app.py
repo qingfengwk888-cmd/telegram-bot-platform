@@ -378,6 +378,7 @@ from app.services.tenant_category_callback_service import try_handle_tenant_cate
 from app.services.admin_tenant_back_callback_service import try_handle_admin_tenant_back_callback
 from app.services.admin_tenant_sort_callback_service import try_handle_admin_tenant_sort_callback
 from app.services.admin_tenant_filter_callback_service import try_handle_admin_tenant_filter_callback
+from app.services.admin_tenant_view_callback_service import try_handle_admin_tenant_view_callback
 
 # ============================================================
 # Helpers
@@ -1982,39 +1983,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    tenant_view_match = re.match(r"^admin_tenant:view:(.+)$", data)
-    if tenant_view_match:
-        tenant_id = sanitize_tenant_id(tenant_view_match.group(1))
-        tenant = await load_tenant(tenant_id)
-
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "租户不存在或已删除",
-                "show_alert": True,
-            })
-            return
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "处理中...",
-        })
-
-        users = await list_started_users_by_tenant_id_for_admin(tenant_id)
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": (
-                (await format_tenant_summary_text(tenant))
-                + "\n\n"
-                + format_started_users_text(tenant, users)
-                + "\n\n"
-                + format_tenant_category_text(tenant)
-            ),
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-            "reply_markup": build_tenant_detail_action_buttons(tenant_id, from_id),
-        })
+    if await try_handle_admin_tenant_view_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+    ):
         return
 
     action = match.group(1)
