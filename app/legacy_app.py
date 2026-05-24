@@ -387,6 +387,7 @@ from app.services.platform_apply_approve_update_callback_service import try_hand
 from app.services.platform_apply_approve_create_callback_service import handle_platform_apply_approve_create_callback
 from app.services.platform_apply_approve_callback_service import try_handle_platform_apply_approve_callback
 from app.services.platform_apply_review_callback_service import try_handle_platform_apply_review_callback
+from app.services.platform_bot_callback_router_service import try_route_platform_bot_callback
 
 # ============================================================
 # Helpers
@@ -1779,23 +1780,11 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
         return
 
     # 先处理机器人侧 callback
-    if (
-        data.startswith("bot_manage:")
-        or data.startswith("bot_select:")
-        or data.startswith("bot_remove:")
-        or data.startswith("bot_remove_confirm:")
-        or data == "bot_remove_cancel"
-        or data.startswith("button_flow:")
-        or data.startswith("modify_submit:")
-        or data == "bot_noop"
-        or data == "bot_blacklist_back"
-        or data.startswith("bot_blacklist_back:")
-        or data.startswith("button_manage:")
-        or data.startswith("button_delete:")
-        or data == "tenant_broadcast_confirm"
-        or data == "tenant_broadcast_cancel"
+    if await try_route_platform_bot_callback(
+        callback_query=callback_query,
+        request=request,
+        data=data,
     ):
-        await handle_bot_callback_query(callback_query, request)
         return
 
     # 再处理平台管理员 callback
