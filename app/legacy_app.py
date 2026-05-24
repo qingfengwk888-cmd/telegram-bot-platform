@@ -362,6 +362,7 @@ from app.services.platform_secondary_admin_guard_service import try_block_second
 from app.services.platform_admin_permission_guard_service import try_block_non_platform_admin_callback
 from app.services.platform_global_broadcast_confirm_validation_service import validate_platform_global_broadcast_confirm_session
 from app.services.platform_global_broadcast_execute_service import execute_platform_global_broadcast
+from app.services.platform_global_broadcast_finish_service import finish_platform_global_broadcast_confirm
 
 # ============================================================
 # Helpers
@@ -1822,34 +1823,15 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
             target_type=target_type,
         )
 
-        await clear_apply_session(from_id)
-
-        if message.get("chat", {}).get("id") and message.get("message_id"):
-            try:
-                await tg(platform_bot_token, "editMessageReplyMarkup", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "reply_markup": {"inline_keyboard": []},
-                })
-            except Exception:
-                pass
-
-        target_label_map = {
-            "tenants": "全部租户",
-            "tenant_users": "全部租户的用户",
-            "all_people": "所有人",
-        }
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": (
-                "🌐 全部群发完成\n"
-                f"范围：{target_label_map.get(target_type, target_type)}\n"
-                f"目标人数：{total_target}\n"
-                f"成功：{success}\n"
-                f"失败：{failed}"
-            ),
-        })
+        await finish_platform_global_broadcast_confirm(
+            platform_bot_token=platform_bot_token,
+            from_id=from_id,
+            message=message,
+            target_type=target_type,
+            total_target=total_target,
+            success=success,
+            failed=failed,
+        )
         return
 
     if data == "admin_tenant_broadcast_confirm":
