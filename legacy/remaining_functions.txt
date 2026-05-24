@@ -1,15 +1,11 @@
-legacy_app.py remaining top-level functions: 13
+legacy_app.py remaining top-level functions: 9
 --------------------------------------------------------------------------------
-  437  async  try_handle_platform_blacklist_command
-  539  async  handle_platform_message
- 1708  async  handle_platform_callback_query
- 2823  async  handle_bot_callback_query
- 4066  async  internal_create_bot
- 4096  async  internal_get_tenant
- 4117  async  internal_list_tenants
- 4145  async  internal_list_applies
- 4177  async  internal_disable_tenant
- 4202  async  internal_enable_tenant
- 4227  async  internal_delete_tenant
- 4249  async  internal_setup_webhook
- 4284  async  internal_setup_platform_webhook
+internal_create_bot
+internal_get_tenant
+internal_list_tenants
+internal_list_applies
+internal_disable_tenant
+internal_enable_tenant
+internal_delete_tenant
+internal_setup_webhook
+internal_setup_platform_webhook

@@ -88,3 +88,12 @@ python -m py_compile app/main.py app/legacy_app.py app/routes/*.py app/services/
 timeout 8s python -m app.main
 echo "exit_code=$?"
 python scripts/report_legacy_functions.py | head -100
+
+## Latest progress
+
+- `handle_platform_message` has been moved out of `legacy_app.py`.
+- `handle_platform_callback_query` has been moved out of `legacy_app.py`.
+- `handle_bot_callback_query` has been moved out of `legacy_app.py`.
+- `try_handle_platform_blacklist_command` has been moved to service.
+- `legacy_app.py` now only keeps internal API compatibility handlers.
+- Per current rule, `internal_*` is not being split in this stage.
