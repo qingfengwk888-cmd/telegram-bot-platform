@@ -11,6 +11,22 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.core.keys import (
+    tenant_started_users_key,
+    bot_stat_lock_key,
+    tenant_stat_lock_key,
+    bot_started_users_key,
+    bot_start_alert_window_key,
+    bot_start_alert_cooldown_key,
+    tenant_latest_bot_id_key,
+    tenant_key,
+    bot_key,
+    bot_index_key,
+    tenant_bots_key,
+    tenant_all_bots_key,
+    tenant_index_key,
+    tenant_data_key,
+)
 from app.utils.helpers import (
     cost_ms,
     now_ms,
@@ -410,9 +426,6 @@ async def incr_tenant_stat(tenant_id: str, field: str, delta: int) -> None:
 
 
 
-def tenant_started_users_key(tenant_id: str) -> str:
-    return f"t:{tenant_id}:started_users"
-
 
 def generate_webhook_secret() -> str:
     return f"tg_{uuid.uuid4().hex}"
@@ -770,11 +783,7 @@ async def notify_new_bot_connected(
 
 
 
-def bot_stat_lock_key(bot_id: str) -> str:
-    return f"lock:bot:stat:{bot_id}"
 
-def tenant_stat_lock_key(tenant_id: str) -> str:
-    return f"lock:tenant:stat:{tenant_id}"
 
 async def acquire_short_lock(key: str, ttl: int = 3) -> bool:
     return bool(await redis_client.set(key, "1", ex=ttl, nx=True))
@@ -783,51 +792,14 @@ async def release_short_lock(key: str) -> None:
     await redis_client.delete(key)
 
 
-def bot_started_users_key(bot_id: str) -> str:
-    return f"b:{bot_id}:started_users"
-
-
-def bot_start_alert_window_key(bot_id: str) -> str:
-    return f"b:{bot_id}:start_alert:window"
-
-def bot_start_alert_cooldown_key(bot_id: str) -> str:
-    return f"b:{bot_id}:start_alert:cooldown"
 
 
 
-
-def tenant_latest_bot_id_key(tenant_id: str) -> str:
-    return f"tenant:{tenant_id}:latest_bot_id"
 
 async def refresh_tenant_latest_bot_id(tenant_id: str) -> None:
     # 数据库版不再需要单独维护 latest_bot_id key。
     # 最新 bot 通过 bots.created_at_ms 排序实时计算。
     return None
-
-
-def tenant_key(tenant_id: str) -> str:
-    return f"tenant:{tenant_id}"
-
-def bot_key(bot_id: str) -> str:
-    return f"bot:{bot_id}"
-
-def bot_index_key() -> str:
-    return "bot:index"
-
-def tenant_bots_key(tenant_id: str) -> str:
-    return f"tenant:{tenant_id}:bots"
-
-def tenant_all_bots_key(tenant_id: str) -> str:
-    return f"tenant:{tenant_id}:all_bots"
-
-
-def tenant_index_key() -> str:
-    return "tenant:index"
-
-
-def tenant_data_key(tenant_id: str, *parts: Any) -> str:
-    return ":".join(["t", tenant_id, *map(str, parts)])
-
 
 
 
