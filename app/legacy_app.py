@@ -143,9 +143,6 @@ from app.routes.internal import router as internal_router
 from app.telegram.api import (
     tg,
     telegram_raw,
-    register_bot_commands,
-    register_bot_commands_safe,
-    set_telegram_http_client,
 )
 from app.telegram.formatters import (
     format_button_preview,
@@ -269,7 +266,6 @@ app.include_router(internal_router)
 
 from app.core.request_helpers import (
     build_bot_webhook_url,
-    generate_webhook_secret,
     get_platform_admin_chat_id,
     get_platform_bot_token,
     get_request_origin,
