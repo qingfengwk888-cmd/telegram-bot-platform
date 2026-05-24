@@ -354,6 +354,7 @@ from app.services.bot_remove_cancel_callback_service import try_handle_bot_remov
 from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
 from app.services.bot_manage_back_to_list_callback_service import try_handle_bot_manage_back_to_list_callback
 from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
+from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
 
 # ============================================================
 # Helpers
@@ -2883,32 +2884,12 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    m_blacklist_back = re.match(r"^bot_blacklist_back:(.+)$", data)
-    if m_blacklist_back:
-        bot_id = sanitize_tenant_id(m_blacklist_back.group(1))
-        bot = await load_bot(bot_id)
-
-        if not bot:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-        show_name = f"@{bot_username}" if bot_username else (bot.get("tenantName") or bot_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "返回上一级",
-        })
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": f"当前机器人：{show_name}",
-            "reply_markup": build_single_bot_action_buttons(bot_id),
-        })
+    if await try_handle_bot_blacklist_detail_back_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
 
     bot = None
