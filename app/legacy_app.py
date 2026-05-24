@@ -359,6 +359,7 @@ from app.services.bot_callback_rate_limit_service import resolve_bot_for_callbac
 from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
 from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
+from app.services.platform_admin_permission_guard_service import try_block_non_platform_admin_callback
 
 # ============================================================
 # Helpers
@@ -1771,12 +1772,11 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
         return
 
     # 再处理平台管理员 callback
-    if not (is_primary_platform_admin(from_id) or is_secondary_platform_admin(from_id)):
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "无权限操作",
-            "show_alert": True,
-        })
+    if await try_block_non_platform_admin_callback(
+        platform_bot_token=platform_bot_token,
+        callback_query=callback_query,
+        from_id=from_id,
+    ):
         return
 
 
