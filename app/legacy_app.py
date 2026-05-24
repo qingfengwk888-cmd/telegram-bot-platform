@@ -344,6 +344,7 @@ from app.services.bot_button_flow_callback_service import try_handle_bot_button_
 
 from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
 from app.services.tenant_select_buttons_callback_service import try_handle_tenant_select_buttons_callback
+from app.services.tenant_select_blacklist_callback_service import try_handle_tenant_select_blacklist_callback
 
 # ============================================================
 # Helpers
@@ -2993,6 +2994,15 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
+    if await try_handle_tenant_select_blacklist_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
+        return
+
     # 第二层：点击设置欢迎语 / 设置按钮
     m = re.match(r"^tenant_select:(welcome|buttons|blacklist|broadcast):(.+)$", data)
     if m:
@@ -3039,50 +3049,6 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         session["tenantId"] = tenant_id
         session["tenantName"] = tenant.get("tenantName") or tenant_id
         session["botUsername"] = bot_username
-        if action == "blacklist":
-            started = time.perf_counter()
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "处理中...",
-            })
-
-            bots = await list_bots_by_tenant_id(tenant_id)
-            all_users: List[dict] = []
-
-            for bot in bots:
-                bot_id = str(bot.get("botId") or "").strip()
-                if not bot_id:
-                    continue
-
-                users = await list_blacklisted_users(bot_id)
-                bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-
-                for u in users:
-                    all_users.append({
-                        **u,
-                        "botId": bot_id,
-                        "botUsername": bot_username,
-                        "tenantId": tenant_id,
-                    })
-
-            all_users.sort(key=lambda x: int(x.get("userId") or 0))
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": format_tenant_blacklisted_users_text(tenant, all_users),
-                "parse_mode": "HTML",
-            })
-
-            logger.info(
-                "perf tenant_select:blacklist tenant_id=%s bots=%s users=%s cost_ms=%s",
-                tenant_id,
-                len(bots),
-                len(all_users),
-                cost_ms(started),
-            )
-            return
-
         if action == "broadcast":
             if not session:
                 session = {}
