@@ -33,11 +33,13 @@ def is_new_tenant_notice_text(text: str) -> bool:
 async def refresh_tenant_detail_message(
     *,
     platform_bot_token: str,
-    chat_id: int,
-    message_id: int,
-    tenant_id: str,
+    chat_id: int | None = None,
+    message_id: int | None = None,
+    tenant_id: str | None = None,
     tenant: dict | None = None,
     message: dict | None = None,
+    from_id: int | None = None,
+    callback_query: dict | None = None,
     **_ignored,
 ) -> None:
     from app.telegram.api import tg
@@ -53,9 +55,27 @@ async def refresh_tenant_detail_message(
     )
     from app.telegram.keyboards import build_tenant_detail_action_buttons
 
+    if message is None and callback_query:
+        message = callback_query.get("message") or {}
+
+    if chat_id is None and message:
+        chat_id = (message.get("chat") or {}).get("id")
+
+    if message_id is None and message:
+        message_id = message.get("message_id")
+
+    if tenant_id is None and tenant:
+        tenant_id = tenant.get("tenantId")
+
+    if tenant_id is None:
+        return
+
     if tenant is None:
         tenant = await load_tenant(tenant_id)
     if not tenant:
+        return
+
+    if not chat_id or not message_id:
         return
 
     bots = await list_bots_by_tenant_id(tenant_id)
