@@ -6,21 +6,22 @@ async def try_handle_admin_tenant_broadcast_cancel_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.apply_service import clear_apply_session
 
     if data != "admin_tenant_broadcast_cancel":
         return False
 
-    await legacy.clear_apply_session(from_id)
+    await clear_apply_session(from_id)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "已取消群发",
     })
 
     if message.get("chat", {}).get("id") and message.get("message_id"):
         try:
-            await legacy.tg(platform_bot_token, "editMessageReplyMarkup", {
+            await tg(platform_bot_token, "editMessageReplyMarkup", {
                 "chat_id": message["chat"]["id"],
                 "message_id": message["message_id"],
                 "reply_markup": {"inline_keyboard": []},
