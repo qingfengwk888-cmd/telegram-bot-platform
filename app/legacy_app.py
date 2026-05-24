@@ -357,6 +357,7 @@ from app.services.bot_blacklist_back_callback_service import try_handle_bot_blac
 from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
 from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
 from app.services.bot_callback_session_loader_service import load_bot_callback_session
+from app.services.bot_callback_context_service import build_bot_callback_context
 from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
 from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
@@ -1785,16 +1786,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
 
 async def handle_bot_callback_query(callback_query: dict, request: Request) -> None:
     platform_bot_token = get_platform_bot_token()
-    from_user = callback_query.get("from") or {}
-    from_id = int(from_user.get("id") or 0)
-    data = callback_query.get("data") or ""
-    callback_id = callback_query["id"]
-
-    username = from_user.get("username") or ""
-    first_name = from_user.get("first_name") or ""
-    last_name = from_user.get("last_name") or ""
-    name_text = " ".join([x for x in [first_name, last_name] if x]).strip()
-    display_name = f"@{username}" if username else (name_text or f"UID:{from_id}")
+    callback_context = build_bot_callback_context(callback_query=callback_query)
+    from_user = callback_context["from_user"]
+    from_id = callback_context["from_id"]
+    data = callback_context["data"]
+    callback_id = callback_context["callback_id"]
+    username = callback_context["username"]
+    display_name = callback_context["display_name"]
 
     if await try_handle_bot_noop_callback(
         platform_bot_token=platform_bot_token,
