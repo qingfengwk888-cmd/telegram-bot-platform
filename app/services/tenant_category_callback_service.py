@@ -9,18 +9,21 @@ async def try_handle_tenant_category_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id, now_ms
+    from app.services.tenant_service import load_tenant, save_tenant
+    from app.services.platform_notice_view_service import refresh_tenant_detail_message
 
     category_match = re.match(r"^tenant_category:(local|external|other):(.+)$", data)
     if not category_match:
         return False
 
     category = category_match.group(1)
-    tenant_id = legacy.sanitize_tenant_id(category_match.group(2))
+    tenant_id = sanitize_tenant_id(category_match.group(2))
 
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant = await load_tenant(tenant_id)
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "租户不存在或已删除",
             "show_alert": True,
@@ -35,15 +38,15 @@ async def try_handle_tenant_category_callback(
     category_label = category_label_map.get(category, "其他")
 
     tenant["category"] = category
-    tenant["updatedAt"] = legacy.now_ms()
-    await legacy.save_tenant(tenant)
+    tenant["updatedAt"] = now_ms()
+    await save_tenant(tenant)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": f"已分类为：{category_label}",
     })
 
-    await legacy.refresh_tenant_detail_message(
+    await refresh_tenant_detail_message(
         platform_bot_token=platform_bot_token,
         message=message,
         tenant=tenant,
