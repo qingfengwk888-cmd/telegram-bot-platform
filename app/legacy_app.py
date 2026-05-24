@@ -203,6 +203,7 @@ from app.services.tenant_modify_input_message_service import try_handle_tenant_m
 from app.services.tenant_create_bot_token_message_service import try_handle_tenant_create_bot_token_message
 from app.services.platform_admin_tenant_broadcast_legacy_input_service import try_handle_platform_admin_tenant_broadcast_legacy_input
 from app.services.platform_ad_config_input_service import try_handle_platform_ad_config_input
+from app.services.platform_start_message_service import try_handle_platform_start_message
 
 # ============================================================
 # Helpers
@@ -486,24 +487,12 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     # =========================================================
     # 首页 / 角色菜单
     # =========================================================
-    if text.startswith("/start"):
-        await clear_apply_session(chat_id)
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": (
-                "👋 欢迎使用双向机器人\n\n"
-                + (
-                    "你当前进入的是【平台管理员后台】"
-                    if is_platform_admin
-                    else "点击“添加机器人”开始"
-                )
-            ),
-            "reply_markup": (
-                build_platform_reply_keyboard_for_admin(chat_id)
-                if is_platform_admin
-                else build_platform_reply_keyboard_for_tenant()
-            ),
-        })
+    if await try_handle_platform_start_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+        is_platform_admin=is_platform_admin,
+    ):
         return
 
     if is_secondary_platform_admin(chat_id) and text in {"🌐 全部群发", "📢 广告设置"}:
