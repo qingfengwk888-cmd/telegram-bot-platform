@@ -374,6 +374,7 @@ from app.services.platform_ad_pick_callback_service import try_handle_platform_a
 from app.services.platform_ad_menu_callback_service import try_handle_platform_ad_menu_callback
 from app.services.admin_tenant_broadcast_start_callback_service import try_handle_admin_tenant_broadcast_start_callback
 from app.services.tenant_black_toggle_callback_service import try_handle_tenant_black_toggle_callback
+from app.services.tenant_category_callback_service import try_handle_tenant_category_callback
 
 # ============================================================
 # Helpers
@@ -1945,42 +1946,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    category_match = re.match(r"^tenant_category:(local|external|other):(.+)$", data)
-    if category_match:
-        category = category_match.group(1)
-        tenant_id = sanitize_tenant_id(category_match.group(2))
-
-        tenant = await load_tenant(tenant_id)
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "租户不存在或已删除",
-                "show_alert": True,
-            })
-            return
-
-        category_label_map = {
-            "local": "招商(本)",
-            "external": "招商(外)",
-            "other": "其他",
-        }
-        category_label = category_label_map.get(category, "其他")
-
-        tenant["category"] = category
-        tenant["updatedAt"] = now_ms()
-        await save_tenant(tenant)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": f"已分类为：{category_label}",
-        })
-
-        await refresh_tenant_detail_message(
-            platform_bot_token=platform_bot_token,
-            message=message,
-            tenant=tenant,
-            from_id=from_id,
-        )
+    if await try_handle_tenant_category_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        message=message,
+    ):
         return
 
     back_match = re.match(r"^admin_tenant_back:(root|traffic|category)$", data)
