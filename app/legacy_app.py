@@ -360,6 +360,7 @@ from app.services.admin_tenant_broadcast_cancel_callback_service import try_hand
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
 from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
 from app.services.platform_admin_permission_guard_service import try_block_non_platform_admin_callback
+from app.services.platform_global_broadcast_confirm_validation_service import validate_platform_global_broadcast_confirm_session
 
 # ============================================================
 # Helpers
@@ -1800,24 +1801,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
 
     if data == "platform_global_broadcast_confirm":
         session = await load_apply_session(from_id)
-        if not session or session.get("mode") != "platform_global_broadcast" or session.get("step") != "broadcast_confirm":
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "全部群发会话已失效，请重新操作",
-                "show_alert": True,
-            })
-            return
-
-        broadcast_text = str(session.get("broadcastText") or "").strip()
-        target_type = str(session.get("targetType") or "").strip()
-
-        if not broadcast_text or target_type not in {"tenants", "tenant_users", "all_people"}:
-            await clear_apply_session(from_id)
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "群发内容或范围无效，请重新操作",
-                "show_alert": True,
-            })
+        valid, broadcast_text, target_type = await validate_platform_global_broadcast_confirm_session(
+            platform_bot_token=platform_bot_token,
+            callback_query=callback_query,
+            from_id=from_id,
+            session=session,
+        )
+        if not valid:
             return
 
         await tg(platform_bot_token, "answerCallbackQuery", {
