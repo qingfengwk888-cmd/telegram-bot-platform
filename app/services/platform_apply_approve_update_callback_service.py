@@ -7,37 +7,40 @@ async def try_handle_platform_apply_approve_update_callback(
     apply: dict,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import now_ms
+    from app.services.apply_service import apply_bot_update, save_apply
+    from app.telegram.formatters import build_apply_summary
 
     if action != "approve" or apply.get("type") != "update":
         return False
 
-    await legacy.apply_bot_update(apply)
+    await apply_bot_update(apply)
     apply["status"] = "approved"
-    apply["reviewedAt"] = legacy.now_ms()
+    apply["reviewedAt"] = now_ms()
     apply["reviewerChatId"] = from_id
     apply["reviewerAction"] = "approve"
-    await legacy.save_apply(apply)
+    await save_apply(apply)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "已同意修改",
     })
 
     if message.get("chat", {}).get("id") and message.get("message_id"):
-        await legacy.tg(platform_bot_token, "editMessageReplyMarkup", {
+        await tg(platform_bot_token, "editMessageReplyMarkup", {
             "chat_id": message["chat"]["id"],
             "message_id": message["message_id"],
             "reply_markup": {"inline_keyboard": []},
         })
-        await legacy.tg(platform_bot_token, "editMessageText", {
+        await tg(platform_bot_token, "editMessageText", {
             "chat_id": message["chat"]["id"],
             "message_id": message["message_id"],
-            "text": f"{legacy.build_apply_summary(apply)}\n\n✅ <b>修改已通过</b>",
+            "text": f"{build_apply_summary(apply)}\n\n✅ <b>修改已通过</b>",
             "parse_mode": "HTML",
         })
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": apply["applicantChatId"],
         "text": "✅ 你的修改申请已通过审核。\n新的配置已生效。",
     })
