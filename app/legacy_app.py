@@ -372,6 +372,7 @@ from app.services.platform_noop_callback_service import try_handle_platform_noop
 from app.services.admin_tenant_menu_callback_service import try_handle_admin_tenant_menu_callback
 from app.services.platform_ad_pick_callback_service import try_handle_platform_ad_pick_callback
 from app.services.platform_ad_menu_callback_service import try_handle_platform_ad_menu_callback
+from app.services.admin_tenant_broadcast_start_callback_service import try_handle_admin_tenant_broadcast_start_callback
 
 # ============================================================
 # Helpers
@@ -1926,48 +1927,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    broadcast_match = re.match(r"^admin_tenant_broadcast:(.+)$", data)
-    if broadcast_match:
-        tenant_id = sanitize_tenant_id(broadcast_match.group(1))
-        tenant = await load_tenant(tenant_id)
-
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "租户不存在或已删除",
-                "show_alert": True,
-            })
-            return
-
-        if await is_platform_tenant_blacklisted(tenant_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "该租户已被拉黑，禁止群发",
-                "show_alert": True,
-            })
-            return
-
-        await save_apply_session(from_id, {
-            "mode": "admin_tenant_broadcast",
-            "step": "broadcast_input",
-            "tenantId": tenant_id,
-            "tenantName": tenant.get("tenantName") or tenant_id,
-            "botUsername": str(((tenant.get("botInfo") or {}).get("username") or "")).strip(),
-        })
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "请直接发送群发内容",
-        })
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": (
-                f"你正在给租户 {tenant.get('tenantName') or tenant_id} "
-                f"(@{((tenant.get('botInfo') or {}).get('username') or tenant_id)}) 群发。\n\n"
-                "请直接发送要群发的内容。"
-            ),
-        })
+    if await try_handle_admin_tenant_broadcast_start_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+    ):
         return
 
     black_match = re.match(r"^tenant_black_toggle:(black|unblack):(.+)$", data)
