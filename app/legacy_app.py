@@ -198,6 +198,7 @@ from app.services.tenant_broadcast_start_message_service import try_handle_tenan
 from app.services.tenant_help_message_service import try_handle_tenant_help_message
 from app.services.tenant_language_pack_message_service import try_handle_tenant_language_pack_message
 from app.services.tenant_modify_deprecated_message_service import try_handle_tenant_modify_deprecated_message
+from app.services.tenant_broadcast_input_message_service import try_handle_tenant_broadcast_input_message
 
 # ============================================================
 # Helpers
@@ -1009,98 +1010,13 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
                 ),
             })
             return
-    if session and session.get("mode") == "tenant_broadcast":
-        if session.get("step") == "broadcast_input":
-            tenant_id = sanitize_tenant_id(session.get("tenantId") or "")
-            bot_id = sanitize_tenant_id(session.get("botId") or "")
-            broadcast_text = text.strip()
-
-            if not tenant_id or not bot_id or not broadcast_text:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "群发内容不能为空。",
-                })
-                return
-
-            tenant = await load_tenant(tenant_id)
-            if not tenant:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "租户不存在或已删除。",
-                })
-                return
-
-            if int(tenant.get("adminChatId", 0)) != int(chat_id):
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "你没有权限操作这个机器人。",
-                })
-                return
-
-            if await is_platform_tenant_blacklisted(tenant_id):
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户已被平台拉黑，禁止群发。",
-                })
-                return
-
-            sender_bot = await load_bot(bot_id)
-            if not sender_bot:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "机器人不存在或已删除，无法群发。",
-                })
-                return
-
-            if str(sender_bot.get("tenantId") or "").strip() != tenant_id:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "机器人不属于当前租户，无法群发。",
-                })
-                return
-
-            users = await list_started_users(bot_id)
-            if not users:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": f"发送机器人 @{session.get('botUsername') or bot_id} 暂无可群发用户。",
-                })
-                return
-
-            session["step"] = "broadcast_confirm"
-            session["broadcastText"] = broadcast_text
-            session["targetCount"] = len(users)
-            session["senderBotId"] = bot_id
-            session["senderBotUsername"] = str(((sender_bot.get("botInfo") or {}).get("username") or "")).strip()
-            await save_apply_session(chat_id, session)
-
-            sender_show = (
-                f"@{session['senderBotUsername']}"
-                if session["senderBotUsername"] else session["senderBotId"]
-            )
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    f"📣 即将群发给机器人：{sender_show}\n"
-                    f"目标人数：{len(users)}\n\n"
-                    f"群发内容：\n{broadcast_text}\n\n"
-                    "请确认是否发送。"
-                ),
-                "reply_markup": {
-                    "inline_keyboard": [[
-                        {"text": "✅ 确认", "callback_data": "tenant_broadcast_confirm"},
-                        {"text": "❌ 取消", "callback_data": "tenant_broadcast_cancel"},
-                    ]]
-                },
-            })
-            return
+    if await try_handle_tenant_broadcast_input_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+        session=session,
+    ):
+        return
 
 
 async def handle_platform_callback_query(callback_query: dict, request: Request) -> None:
