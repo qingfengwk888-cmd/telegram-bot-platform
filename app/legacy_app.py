@@ -295,26 +295,6 @@ async def internal_create_bot(
 
 
 
-@app.post("/internal/delete-tenant")
-async def internal_delete_tenant(
-    request: Request,
-    x_api_key: Optional[str] = Header(default=None),
-    authorization: Optional[str] = Header(default=None),
-):
-    if not require_internal_api_key(x_api_key, authorization):
-        return json_response({"ok": False, "error": "unauthorized"}, 401)
-
-    body = await request.json()
-    tenant_id = sanitize_tenant_id(body.get("tenantId") or "")
-    if not tenant_id:
-        return json_response({"ok": False, "error": "tenantId_required"}, 400)
-
-    tenant = await load_tenant(tenant_id)
-    if not tenant:
-        return json_response({"ok": False, "error": "tenant_not_found"}, 404)
-
-    await delete_tenant(tenant_id)
-    return {"ok": True, "tenantId": tenant_id, "deleted": True}
 
 
 # route moved to app.routes.internal
