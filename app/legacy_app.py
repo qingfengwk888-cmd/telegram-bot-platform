@@ -193,6 +193,7 @@ from app.services.platform_broadcast_command_service import try_handle_platform_
 from app.services.platform_admin_help_message_service import try_handle_platform_admin_help_message
 from app.services.tenant_my_bots_message_service import try_handle_tenant_my_bots_message
 from app.services.tenant_apply_start_message_service import try_handle_tenant_apply_start_message
+from app.services.tenant_blacklist_view_message_service import try_handle_tenant_blacklist_view_message
 
 # ============================================================
 # Helpers
@@ -736,40 +737,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    if text == "🚫 查看黑名单":
-        tenant = await load_tenant_by_admin_chat_id(chat_id)
-        if not tenant:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你暂未接入机器人。",
-            })
-            return
-
-        bots = await list_bots_by_tenant_id(tenant["tenantId"])
-        if not bots:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你名下暂无机器人。",
-            })
-            return
-
-        if len(bots) == 1:
-            bot = bots[0]
-            bot_id = sanitize_tenant_id(bot.get("botId") or "")
-            users = await list_blacklisted_users(bot_id)
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": format_blacklisted_users_text(bot, users),
-                "parse_mode": "HTML",
-            })
-            return
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "请选择一个机器人查看黑名单：",
-            "reply_markup": build_bot_pick_buttons(bots, "blacklist"),
-        })
+    if await try_handle_tenant_blacklist_view_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
     if text == "📣 群发消息":
