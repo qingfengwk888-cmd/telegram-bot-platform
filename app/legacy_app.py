@@ -312,6 +312,8 @@ from app.services.message_classify_service import (classify_message_action, clas
 
 from app.services.platform_ad_service import (get_platform_ad_by_id, list_platform_ads, save_platform_ads)
 
+from app.services.tenant_query_service import (list_tenants_by_admin_chat_id, redis_get_json, redis_set_json)
+
 # ============================================================
 # Helpers
 # ============================================================
@@ -642,11 +644,6 @@ async def refresh_tenant_latest_bot_id(tenant_id: str) -> None:
 
 
 
-async def redis_get_json(key: str) -> Optional[dict]:
-    return await redis_get_json_db(key)
-
-async def redis_set_json(key: str, value: dict, ttl_seconds: Optional[int] = None) -> None:
-    await redis_set_json_db(key, value, ttl_seconds)
 
 
 
@@ -655,18 +652,7 @@ async def redis_set_json(key: str, value: dict, ttl_seconds: Optional[int] = Non
 
 
 
-async def list_tenants_by_admin_chat_id(admin_chat_id: int) -> List[dict]:
-    ids = await get_tenant_index()
-    tenants: List[dict] = []
-    for tenant_id in ids:
-        tenant = await load_tenant(tenant_id)
-        if (
-            tenant
-            and int(tenant.get("adminChatId", 0)) == int(admin_chat_id)
-            and str(tenant.get("status") or "active") != "deleted"
-        ):
-            tenants.append(tenant)
-    return tenants
+
 
 
 
