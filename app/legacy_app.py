@@ -194,6 +194,7 @@ from app.services.platform_admin_help_message_service import try_handle_platform
 from app.services.tenant_my_bots_message_service import try_handle_tenant_my_bots_message
 from app.services.tenant_apply_start_message_service import try_handle_tenant_apply_start_message
 from app.services.tenant_blacklist_view_message_service import try_handle_tenant_blacklist_view_message
+from app.services.tenant_broadcast_start_message_service import try_handle_tenant_broadcast_start_message
 
 # ============================================================
 # Helpers
@@ -744,38 +745,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    if text == "📣 群发消息":
-        tenants = await list_tenants_by_admin_chat_id(chat_id)
-        if not tenants:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你暂未接入机器人。",
-            })
-            return
-
-        if len(tenants) == 1:
-            tenant = tenants[0]
-            tenant_id = sanitize_tenant_id(tenant.get("tenantId") or "")
-
-            await save_apply_session(chat_id, {
-                "mode": "tenant_broadcast",
-                "step": "broadcast_input",
-                "tenantId": tenant_id,
-                "tenantName": tenant.get("tenantName") or tenant_id,
-                "botUsername": str(((tenant.get("botInfo") or {}).get("username") or "")).strip(),
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你正在给 所有启动用户 群发。\n\n请直接发送群发内容。",
-            })
-            return
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "Please select robot：",
-            "reply_markup": build_tenant_bot_pick_buttons(tenants, "broadcast"),
-        })
+    if await try_handle_tenant_broadcast_start_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
     if text == "💬 帮助中心":
