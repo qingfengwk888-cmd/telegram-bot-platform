@@ -9,16 +9,13 @@ from app.storage.repository import redis_get_json_db, redis_set_json_db, kv_dele
 from app.storage.redis_compat import redis_client
 from app.utils.helpers import escape_html, now_ms, sanitize_tenant_id, build_bot_id_from_bot_username
 from app.telegram.api import tg, telegram_raw
+from app.services.bot_service import load_bot, save_bot
+from app.services.bot_onboarding_service import create_bot_from_payload
 
 
 # 兼容 legacy_app 旧函数名
 redis_get_json = redis_get_json_db
 redis_set_json = redis_set_json_db
-
-
-def _legacy():
-    from app import legacy_app
-    return legacy_app
 
 
 def generate_apply_id() -> str:
@@ -65,7 +62,7 @@ async def clear_apply_session(user_id: int) -> None:
 
 
 async def create_bot_from_apply(request: Request, apply: dict) -> dict:
-    return await _legacy().create_bot_from_payload(
+    return await create_bot_from_payload(
         request,
         {
             "tenantId": apply.get("tenantId"),
@@ -86,7 +83,7 @@ async def apply_bot_update(apply: dict) -> dict:
     if not bot_id:
         raise ValueError("botId_required")
 
-    bot = await _legacy().load_bot(bot_id)
+    bot = await load_bot(bot_id)
     if not bot:
         raise ValueError("bot_not_found")
 
@@ -114,7 +111,7 @@ async def apply_bot_update(apply: dict) -> dict:
             bot[key] = str(value)
 
     bot["updatedAt"] = now_ms()
-    await _legacy().save_bot(bot)
+    await save_bot(bot)
     return {"bot": bot}
 
 
