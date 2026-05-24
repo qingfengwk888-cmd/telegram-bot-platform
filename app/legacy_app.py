@@ -356,6 +356,7 @@ from app.services.bot_manage_back_to_list_callback_service import try_handle_bot
 from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
 from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
 from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
+from app.services.bot_callback_session_loader_service import load_bot_callback_session
 from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
 from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
@@ -1860,29 +1861,10 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         return
 
     # 从这里开始才需要 session
-    session = await load_apply_session(from_id)
-    if (
-        is_busy_input_session(session)
-        and data not in {
-            "admin_tenant_broadcast_confirm",
-            "admin_tenant_broadcast_cancel",
-            "platform_global_broadcast_confirm",
-            "platform_global_broadcast_cancel",
-            "platform_global_broadcast_target:cancel",
-        }
-        and (
-            data.startswith("platform_ad_menu:")
-            or data.startswith("platform_ad_pick:")
-            or data.startswith("admin_tenant_broadcast:")
-            or data.startswith("admin_tenant_menu:")
-            or data.startswith("admin_tenant_sort:")
-            or data.startswith("admin_tenant_filter:")
-            or data.startswith("admin_tenant_back:")
-            or data.startswith("admin_tenant:view:")
-        )
-    ):
-        await clear_apply_session(from_id)
-        session = None
+    session = await load_bot_callback_session(
+        from_id=from_id,
+        data=data,
+    )
 
     if await try_handle_tenant_select_buttons_callback(
         callback_query=callback_query,
