@@ -358,6 +358,7 @@ from app.services.bot_blacklist_detail_back_callback_service import try_handle_b
 from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
 from app.services.bot_callback_session_loader_service import load_bot_callback_session
 from app.services.bot_callback_context_service import build_bot_callback_context
+from app.services.bot_callback_dispatch_service import dispatch_bot_callback
 from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
 from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
@@ -1794,199 +1795,17 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     username = callback_context["username"]
     display_name = callback_context["display_name"]
 
-    if await try_handle_bot_noop_callback(
-        platform_bot_token=platform_bot_token,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_bot_manage_back_to_list_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_bot_blacklist_back_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_bot_blacklist_detail_back_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    handled, bot_id, bot = await resolve_bot_for_callback_and_check_rate_limit(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    )
-    if handled:
-        return
-
-    if await try_handle_bot_button_callback(
+    if await dispatch_bot_callback(
         callback_query=callback_query,
         platform_bot_token=platform_bot_token,
         from_user=from_user,
         from_id=from_id,
         data=data,
         callback_id=callback_id,
-        display_name=display_name,
-        bot=bot,
-    ):
-        return
-
-    if await try_handle_bot_manage_menu_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-        bot=bot,
-    ):
-        return
-
-    # 从这里开始才需要 session
-    session = await load_bot_callback_session(
-        from_id=from_id,
-        data=data,
-    )
-
-    if await try_handle_tenant_select_buttons_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_tenant_select_blacklist_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_tenant_select_welcome_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
         username=username,
         display_name=display_name,
-        data=data,
-        callback_id=callback_id,
-        session=session,
     ):
         return
-
-    if await try_handle_tenant_select_broadcast_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        username=username,
-        display_name=display_name,
-        data=data,
-        callback_id=callback_id,
-        session=session,
-        bot=bot,
-        bot_id=bot_id,
-    ):
-        return
-
-    if await try_handle_tenant_remove_confirm_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_bot_remove_cancel_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    if await try_handle_bot_select_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-        bot=bot,
-    ):
-        return
-
-
-    if await try_handle_bot_remove_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-        bot=bot,
-    ):
-        return
-
-
-    if await try_handle_missing_bot_callback_session(
-        platform_bot_token=platform_bot_token,
-        callback_id=callback_id,
-        session=session,
-    ):
-        return
-
-    if await try_handle_bot_button_flow_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-        session=session,
-        bot=bot,
-    ):
-        return
-
-    if await try_handle_bot_modify_submit_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-        session=session,
-        bot=bot,
-    ):
-        return
-
-    if await try_handle_tenant_broadcast_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return
-
-    await answer_unknown_bot_callback_action(
-        platform_bot_token=platform_bot_token,
-        callback_id=callback_id,
-    )
-
-
 
 
 
