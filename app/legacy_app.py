@@ -206,6 +206,7 @@ from app.services.platform_ad_config_input_service import try_handle_platform_ad
 from app.services.platform_start_message_service import try_handle_platform_start_message
 from app.services.platform_cancel_message_service import try_handle_platform_cancel_message
 from app.services.platform_secondary_admin_restricted_message_service import try_handle_platform_secondary_admin_restricted_message
+from app.services.platform_admin_interrupt_session_service import interrupt_platform_admin_input_session_if_needed
 
 # ============================================================
 # Helpers
@@ -432,22 +433,12 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         return
 
     session = await load_apply_session(chat_id)
-    admin_interrupt_text_actions = {
-        "📊 数据概览",
-        "🏢 所有租户",
-        "🌐 全部群发",
-        "📢 广告设置",
-        "/start",
-        "/cancel",
-    }
-
-    if (
-        is_platform_admin
-        and text in admin_interrupt_text_actions
-        and is_busy_input_session(session)
-    ):
-        await clear_apply_session(chat_id)
-        session = None
+    session = await interrupt_platform_admin_input_session_if_needed(
+        chat_id=chat_id,
+        text=text,
+        is_platform_admin=is_platform_admin,
+        session=session,
+    )
 
 
 
