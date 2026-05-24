@@ -352,6 +352,7 @@ from app.services.bot_callback_session_required_service import try_handle_missin
 from app.services.bot_callback_unknown_action_service import answer_unknown_bot_callback_action
 from app.services.bot_remove_cancel_callback_service import try_handle_bot_remove_cancel_callback
 from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
+from app.services.bot_manage_back_to_list_callback_service import try_handle_bot_manage_back_to_list_callback
 
 # ============================================================
 # Helpers
@@ -2863,23 +2864,13 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    if data == "bot_manage:back_to_list":
-        tenant = await load_tenant_by_admin_chat_id(from_id)
-        bots = []
-        if tenant:
-            bots = await list_bots_by_tenant_id(tenant["tenantId"])
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "返回机器人列表",
-        })
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": "Choose a bot from the list below:",
-            "reply_markup": build_my_bots_entry_buttons(bots),
-        })
+    if await try_handle_bot_manage_back_to_list_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
 
     if data == "bot_blacklist_back":
