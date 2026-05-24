@@ -366,6 +366,7 @@ from app.services.platform_global_broadcast_finish_service import finish_platfor
 from app.services.admin_tenant_broadcast_confirm_validation_service import validate_admin_tenant_broadcast_confirm_session
 from app.services.admin_tenant_broadcast_execute_service import execute_admin_tenant_broadcast
 from app.services.admin_tenant_broadcast_finish_service import finish_admin_tenant_broadcast_confirm
+from app.services.platform_global_broadcast_target_cancel_callback_service import try_handle_platform_global_broadcast_target_cancel_callback
 
 # ============================================================
 # Helpers
@@ -1872,23 +1873,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
         )
         return
 
-    if data == "platform_global_broadcast_target:cancel":
-        await clear_apply_session(from_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "已取消",
-        })
-
-        if message.get("chat", {}).get("id") and message.get("message_id"):
-            try:
-                await tg(platform_bot_token, "editMessageReplyMarkup", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "reply_markup": {"inline_keyboard": []},
-                })
-            except Exception:
-                pass
+    if await try_handle_platform_global_broadcast_target_cancel_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        message=message,
+    ):
         return
 
     if data.startswith("platform_global_broadcast_target:"):
