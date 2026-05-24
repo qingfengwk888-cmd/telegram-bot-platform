@@ -364,6 +364,7 @@ from app.services.platform_global_broadcast_confirm_validation_service import va
 from app.services.platform_global_broadcast_execute_service import execute_platform_global_broadcast
 from app.services.platform_global_broadcast_finish_service import finish_platform_global_broadcast_confirm
 from app.services.admin_tenant_broadcast_confirm_validation_service import validate_admin_tenant_broadcast_confirm_session
+from app.services.admin_tenant_broadcast_execute_service import execute_admin_tenant_broadcast
 
 # ============================================================
 # Helpers
@@ -1851,19 +1852,11 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
             "text": "开始群发",
         })
 
-        success = 0
-        failed = 0
-
-        for u in users:
-            user_id = int(u["userId"])
-            try:
-                await tg(sender_bot["botToken"], "sendMessage", {
-                    "chat_id": user_id,
-                    "text": broadcast_text,
-                })
-                success += 1
-            except Exception:
-                failed += 1
+        success, failed = await execute_admin_tenant_broadcast(
+            sender_bot=sender_bot,
+            users=users,
+            broadcast_text=broadcast_text,
+        )
 
         await clear_apply_session(from_id)
 
