@@ -369,6 +369,7 @@ from app.services.admin_tenant_broadcast_finish_service import finish_admin_tena
 from app.services.platform_global_broadcast_target_cancel_callback_service import try_handle_platform_global_broadcast_target_cancel_callback
 from app.services.platform_global_broadcast_target_select_callback_service import try_handle_platform_global_broadcast_target_select_callback
 from app.services.platform_noop_callback_service import try_handle_platform_noop_callback
+from app.services.admin_tenant_menu_callback_service import try_handle_admin_tenant_menu_callback
 
 # ============================================================
 # Helpers
@@ -1899,33 +1900,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    menu_match = re.match(r"^admin_tenant_menu:(traffic|category)$", data)
-    if menu_match:
-        menu_type = menu_match.group(1)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "请选择具体方式",
-        })
-
-        if not message.get("chat", {}).get("id") or not message.get("message_id"):
-            return
-
-        if menu_type == "traffic":
-            await tg(platform_bot_token, "editMessageText", {
-                "chat_id": message["chat"]["id"],
-                "message_id": message["message_id"],
-                "text": "🏢 所有租户\n\n请选择流量排序方式：",
-                "reply_markup": build_admin_tenant_traffic_sort_buttons(),
-            })
-            return
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": message["chat"]["id"],
-            "message_id": message["message_id"],
-            "text": "🏢 所有租户\n\n请选择租户分类：",
-            "reply_markup": build_admin_tenant_category_buttons(),
-        })
+    if await try_handle_admin_tenant_menu_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        data=data,
+        message=message,
+    ):
         return
 
     pick_match = re.match(r"^platform_ad_pick:(edit|delete):(.+)$", data)
