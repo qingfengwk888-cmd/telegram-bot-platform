@@ -1,4 +1,3 @@
-from app.core.request_helpers import get_platform_admin_chat_id
 from app.utils.helpers import is_primary_platform_admin, is_secondary_platform_admin
 from app.services.apply_service import load_apply_session
 from app.services.platform_admin_interrupt_session_service import interrupt_platform_admin_input_session_if_needed
