@@ -381,6 +381,7 @@ from app.services.admin_tenant_filter_callback_service import try_handle_admin_t
 from app.services.admin_tenant_view_callback_service import try_handle_admin_tenant_view_callback
 from app.services.platform_apply_review_validation_service import load_and_validate_platform_apply_review
 from app.services.platform_apply_reject_callback_service import try_handle_platform_apply_reject_callback
+from app.services.platform_apply_approve_update_callback_service import try_handle_platform_apply_approve_update_callback
 
 # ============================================================
 # Helpers
@@ -2024,36 +2025,14 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
 
     if action == "approve":
         try:
-            if apply.get("type") == "update":
-                await apply_bot_update(apply)
-                apply["status"] = "approved"
-                apply["reviewedAt"] = now_ms()
-                apply["reviewerChatId"] = from_id
-                apply["reviewerAction"] = "approve"
-                await save_apply(apply)
-
-                await tg(platform_bot_token, "answerCallbackQuery", {
-                    "callback_query_id": callback_query["id"],
-                    "text": "已同意修改",
-                })
-
-                if message.get("chat", {}).get("id") and message.get("message_id"):
-                    await tg(platform_bot_token, "editMessageReplyMarkup", {
-                        "chat_id": message["chat"]["id"],
-                        "message_id": message["message_id"],
-                        "reply_markup": {"inline_keyboard": []},
-                    })
-                    await tg(platform_bot_token, "editMessageText", {
-                        "chat_id": message["chat"]["id"],
-                        "message_id": message["message_id"],
-                        "text": f"{build_apply_summary(apply)}\n\n✅ <b>修改已通过</b>",
-                        "parse_mode": "HTML",
-                    })
-
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": apply["applicantChatId"],
-                    "text": "✅ 你的修改申请已通过审核。\n新的配置已生效。",
-                })
+            if await try_handle_platform_apply_approve_update_callback(
+                callback_query=callback_query,
+                platform_bot_token=platform_bot_token,
+                from_id=from_id,
+                action=action,
+                apply=apply,
+                message=message,
+            ):
                 return
 
             result = await create_bot_from_apply(request, apply)
