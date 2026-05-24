@@ -13,17 +13,21 @@ async def try_handle_tenant_select_broadcast_callback(
     bot: dict | None,
     bot_id: str | None,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id
+    from app.services.tenant_service import load_tenant
+    from app.services.bot_service import pick_default_bot_for_tenant
+    from app.services.apply_service import save_apply_session
 
     m = re.match(r"^tenant_select:broadcast:(.+)$", data)
     if not m:
         return False
 
-    tenant_id = legacy.sanitize_tenant_id(m.group(1))
+    tenant_id = sanitize_tenant_id(m.group(1))
 
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant = await load_tenant(tenant_id)
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "机器人不存在",
             "show_alert": True,
@@ -31,7 +35,7 @@ async def try_handle_tenant_select_broadcast_callback(
         return True
 
     if int(tenant.get("adminChatId", 0)) != int(from_id):
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "你没有权限操作这个机器人",
             "show_alert": True,
@@ -57,10 +61,10 @@ async def try_handle_tenant_select_broadcast_callback(
         }
 
     if not bot:
-        bot = await legacy.pick_default_bot_for_tenant(tenant_id)
+        bot = await pick_default_bot_for_tenant(tenant_id)
 
     if not bot:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "该租户下暂无可操作机器人",
             "show_alert": True,
@@ -77,14 +81,14 @@ async def try_handle_tenant_select_broadcast_callback(
     session["botId"] = bot_id
     session["botUsername"] = bot_username
 
-    await legacy.save_apply_session(from_id, session)
+    await save_apply_session(from_id, session)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "已选择机器人",
     })
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
         "text": f"你正在给 @{session['botUsername'] or bot_id} 的启动用户群发。\n\n请直接发送群发内容。",
     })
