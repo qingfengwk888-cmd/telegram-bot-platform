@@ -1,5 +1,14 @@
 from typing import List
 
+from app.core.logger import logger
+
+import re
+
+from app.telegram.api import tg
+from app.telegram.keyboards import build_profile_buttons
+
+
+from app.storage.redis_compat import redis_client
 from app.storage.repository import (
     is_platform_tenant_blacklisted_db,
     set_platform_tenant_blacklisted_db,
@@ -7,7 +16,8 @@ from app.storage.repository import (
     set_bot_user_blacklisted_db,
     list_bot_blacklisted_users_db,
 )
-from app.utils.helpers import sanitize_tenant_id, escape_html, format_date_ymd
+from app.utils.helpers import sanitize_tenant_id, escape_html, format_date_ymd, now_ms, is_primary_platform_admin, is_secondary_platform_admin
+from app.services.notice_service import get_platform_notice_target
 
 
 def bot_user_black_key(bot_id: str, user_id: int) -> str:
@@ -115,3 +125,19 @@ def format_tenant_blacklisted_users_text(tenant: dict, users: List[dict]) -> str
         lines.append(f"仅显示前 100 条，共 {len(users)} 条")
 
     return "\n".join(lines)
+
+
+def _legacy():
+    from app import legacy_app
+    return legacy_app
+
+
+
+
+
+def get_platform_bot_token() -> str:
+    return _legacy().get_platform_bot_token()
+
+
+def tenant_data_key(tenant_id: str, *parts) -> str:
+    return _legacy().tenant_data_key(tenant_id, *parts)
