@@ -11,9 +11,9 @@ async def internal_create_bot(
     x_api_key: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
-    from app import legacy_app
+    from app.services.internal_bot_create_service import internal_create_bot as handle_internal_create_bot
 
-    return await legacy_app.internal_create_bot(
+    return await handle_internal_create_bot(
         request=request,
         x_api_key=x_api_key,
         authorization=authorization,
