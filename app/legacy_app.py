@@ -207,6 +207,7 @@ from app.services.platform_start_message_service import try_handle_platform_star
 from app.services.platform_cancel_message_service import try_handle_platform_cancel_message
 from app.services.platform_secondary_admin_restricted_message_service import try_handle_platform_secondary_admin_restricted_message
 from app.services.platform_admin_interrupt_session_service import interrupt_platform_admin_input_session_if_needed
+from app.services.platform_tenant_message_guard_service import check_platform_tenant_message_guard
 
 # ============================================================
 # Helpers
@@ -450,32 +451,14 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    current_tenant = await load_tenant_by_admin_chat_id(chat_id)
-    if not is_platform_admin and current_tenant:
-        tenant_id = sanitize_tenant_id(current_tenant.get("tenantId") or "")
-        action_name = classify_platform_action(text)
-
-        if action_name != "platform_plain_text":
-            tenant_id = build_tenant_id_from_admin_chat_id(chat_id)
-
-            limit_result = await get_bot_user_rate_limit_status(
-                bot_id=tenant_id,
-                user_id=chat_id,
-                action=action_name,
-            )
-            if limit_result["blocked"]:
-                if limit_result["message"]:
-                    await tg(platform_bot_token, "sendMessage", {
-                        "chat_id": chat_id,
-                        "text": limit_result["message"],
-                    })
-                return
-
-    if current_tenant:
-        tenant_id = sanitize_tenant_id(current_tenant.get("tenantId") or "")
-        if tenant_id and await is_platform_tenant_blacklisted(tenant_id):
-            # 被拉黑租户，平台机器人直接忽略
-            return
+    handled, current_tenant = await check_platform_tenant_message_guard(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+        is_platform_admin=is_platform_admin,
+    )
+    if handled:
+        return
 
     # =========================================================
     # 首页 / 角色菜单
