@@ -316,6 +316,8 @@ from app.services.tenant_query_service import (list_tenants_by_admin_chat_id, re
 
 from app.services.input_session_service import (interrupt_input_session_if_needed, is_busy_input_session, is_input_session)
 
+from app.services.message_parse_service import (extract_bot_id_from_callback_data, parse_start_payload, should_handle_as_admin_message)
+
 # ============================================================
 # Helpers
 # ============================================================
@@ -4470,26 +4472,6 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         "show_alert": True,
     })
 
-async def extract_bot_id_from_callback_data(data: str) -> Optional[str]:
-    if data in {"bot_noop", "bot_manage:back_to_list", "bot_blacklist_back"}:
-        return ""
-    data = str(data or "").strip()
-
-    patterns = [
-        r"^bot_select:[^:]+:(.+)$",
-        r"^bot_manage:(.+)$",
-        r"^bot_remove:(.+)$",
-        r"^bot_remove_confirm:(.+)$",
-        r"^button_manage:[^:]+:(.+)$",
-        r"^button_delete:(.+):\d+$",
-    ]
-
-    for p in patterns:
-        m = re.match(p, data)
-        if m:
-            return sanitize_tenant_id(m.group(1))
-
-    return None
 
 
 
@@ -4498,12 +4480,6 @@ async def extract_bot_id_from_callback_data(data: str) -> Optional[str]:
 # Tenant user/admin handlers
 # ============================================================
 
-def parse_start_payload(text: str = "") -> str:
-    text = (text or "").strip()
-    m = re.match(r"^/start(?:\s+(.+))?$", text)
-    if not m:
-        return ""
-    return (m.group(1) or "").strip()
 
 
 async def handle_user_message(msg: dict, bot: dict) -> None:
@@ -4739,18 +4715,6 @@ async def try_handle_bot_user_blacklist_command(bot: dict, msg: dict) -> bool:
 
     return True
 
-def should_handle_as_admin_message(msg: dict) -> bool:
-    text = str(msg.get("text") or "").strip()
-    replied = msg.get("reply_to_message")
-
-    # 只有这些场景才走管理员逻辑
-    if replied:
-        return True
-
-    if text in {"拉黑", "解黑"}:
-        return True
-
-    return False
 
 async def handle_admin_message(msg: dict, bot: dict) -> None:
     admin_chat_id = int(bot["adminChatId"])
