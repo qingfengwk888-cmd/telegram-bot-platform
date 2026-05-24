@@ -192,6 +192,7 @@ from app.services.platform_broadcast_all_command_service import try_handle_platf
 from app.services.platform_broadcast_command_service import try_handle_platform_broadcast_command
 from app.services.platform_admin_help_message_service import try_handle_platform_admin_help_message
 from app.services.tenant_my_bots_message_service import try_handle_tenant_my_bots_message
+from app.services.tenant_apply_start_message_service import try_handle_tenant_apply_start_message
 
 # ============================================================
 # Helpers
@@ -725,22 +726,14 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    if text == "📝 添加机器人" or text.startswith("/apply"):
-        await save_apply_session(chat_id, {
-            "mode": "create",
-            "step": "bot_token",
-            "applicantChatId": chat_id,
-            "applicantUsername": username,
-            "applicantDisplayName": display_name,
-            "tenantName": username or name_text or f"user_{chat_id}",
-            "tenantId": "",
-            "botToken": "",
-        })
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "📝 开始添加\n\n请直接发送机器人 Bot Token。",
-        })
+    if await try_handle_tenant_apply_start_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+        username=username,
+        display_name=display_name,
+        name_text=name_text,
+    ):
         return
 
     if text == "🚫 查看黑名单":
