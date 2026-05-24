@@ -11,6 +11,10 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.stat_service import (
+    incr_bot_stat,
+    incr_tenant_stat,
+)
 from app.services.lock_service import (
     acquire_short_lock,
     release_short_lock,
@@ -320,116 +324,6 @@ def require_internal_api_key(
     return bool(INTERNAL_API_KEY) and header_key == INTERNAL_API_KEY
 
 
-
-
-async def incr_bot_stat(bot_id: str, field: str, delta: int) -> None:
-    if not bot_id or not delta:
-        return
-
-    lock_key = bot_stat_lock_key(bot_id)
-
-    locked = False
-    for _ in range(5):
-        locked = await acquire_short_lock(lock_key, ttl=3)
-        if locked:
-            break
-        await asyncio.sleep(0.05)
-
-    if not locked:
-        logger.warning("skip incr_bot_stat due to lock contention bot_id=%s field=%s delta=%s", bot_id, field, delta)
-        return
-
-    try:
-        bot = await load_bot(bot_id)
-        if not bot:
-            return
-
-        current = int(bot.get(field) or 0)
-        next_value = current + int(delta)
-        if next_value < 0:
-            next_value = 0
-
-        bot[field] = next_value
-        bot["updatedAt"] = now_ms()
-        await save_bot(bot)
-    finally:
-        await release_short_lock(lock_key)
-
-        async def incr_tenant_stat(tenant_id: str, field: str, delta: int) -> None:
-            if not tenant_id or not delta:
-                return
-
-            lock_key = tenant_stat_lock_key(tenant_id)
-
-            locked = False
-            for _ in range(5):
-                locked = await acquire_short_lock(lock_key, ttl=3)
-                if locked:
-                    break
-                await asyncio.sleep(0.05)
-
-            if not locked:
-                logger.warning(
-                    "skip incr_tenant_stat due to lock contention tenant_id=%s field=%s delta=%s",
-                    tenant_id,
-                    field,
-                    delta,
-                )
-                return
-
-            try:
-                tenant = await load_tenant(tenant_id)
-                if not tenant:
-                    return
-
-                current = int(tenant.get(field) or 0)
-                next_value = current + int(delta)
-                if next_value < 0:
-                    next_value = 0
-
-                tenant[field] = next_value
-                tenant["updatedAt"] = now_ms()
-                await save_tenant(tenant)
-            finally:
-                await release_short_lock(lock_key)
-
-async def incr_tenant_stat(tenant_id: str, field: str, delta: int) -> None:
-    if not tenant_id or not delta:
-        return
-
-    lock_key = tenant_stat_lock_key(tenant_id)
-
-    locked = False
-    for _ in range(5):
-        locked = await acquire_short_lock(lock_key, ttl=3)
-        if locked:
-            break
-        await asyncio.sleep(0.05)
-
-    if not locked:
-        logger.warning(
-            "skip incr_tenant_stat due to lock contention tenant_id=%s field=%s delta=%s",
-            tenant_id,
-            field,
-            delta,
-        )
-        return
-
-    try:
-        tenant = await load_tenant(tenant_id)
-        if not tenant:
-            return
-
-        current = int(tenant.get(field) or 0)
-        next_value = current + int(delta)
-        if next_value < 0:
-            next_value = 0
-
-        tenant[field] = next_value
-        tenant["updatedAt"] = now_ms()
-        await save_tenant(tenant)
-    finally:
-        await release_short_lock(lock_key)
 
 
 
