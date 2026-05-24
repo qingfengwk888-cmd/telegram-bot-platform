@@ -11,6 +11,11 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.notice_service import (
+    platform_tenant_notice_map_key,
+    map_platform_notice_message,
+    get_platform_notice_target,
+)
 from app.services.apply_service import (
     generate_apply_id,
     apply_key,
@@ -1020,28 +1025,9 @@ def tenant_data_key(tenant_id: str, *parts: Any) -> str:
 
 
 
-def platform_tenant_notice_map_key(message_id: int) -> str:
-    return f"platform:tenant_notice_map:{int(message_id)}"
 
 def platform_tenant_black_key(tenant_id: str) -> str:
     return f"platform:black:tenant:{sanitize_tenant_id(tenant_id)}"
-
-
-async def map_platform_notice_message(message_id: int, tenant_id: str, applicant_chat_id: int) -> None:
-    await redis_set_json(
-        platform_tenant_notice_map_key(message_id),
-        {
-            "tenantId": sanitize_tenant_id(tenant_id),
-            "applicantChatId": int(applicant_chat_id),
-            "ts": now_ms(),
-        },
-        MESSAGE_MAP_TTL_SECONDS,
-    )
-
-async def get_platform_notice_target(message_id: int) -> Optional[dict]:
-    return await redis_get_json(platform_tenant_notice_map_key(message_id))
-
-
 
 
 
