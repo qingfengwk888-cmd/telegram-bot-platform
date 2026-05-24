@@ -17,11 +17,7 @@ async def dispatch_bot_callback(
     from app.services.bot_button_callback_service import try_handle_bot_button_callback
     from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
     from app.services.bot_callback_session_loader_service import load_bot_callback_session
-    from app.services.tenant_select_buttons_callback_service import try_handle_tenant_select_buttons_callback
-    from app.services.tenant_select_blacklist_callback_service import try_handle_tenant_select_blacklist_callback
-    from app.services.tenant_select_welcome_callback_service import try_handle_tenant_select_welcome_callback
-    from app.services.tenant_select_broadcast_callback_service import try_handle_tenant_select_broadcast_callback
-    from app.services.tenant_remove_confirm_callback_service import try_handle_tenant_remove_confirm_callback
+    from app.services.bot_tenant_select_callback_dispatch_service import dispatch_bot_tenant_select_callback
     from app.services.bot_remove_cancel_callback_service import try_handle_bot_remove_cancel_callback
     from app.services.bot_select_callback_service import try_handle_bot_select_callback
     from app.services.bot_remove_callback_service import try_handle_bot_remove_callback
@@ -100,36 +96,8 @@ async def dispatch_bot_callback(
         data=data,
     )
 
-    if await try_handle_tenant_select_buttons_callback(
+    if await dispatch_bot_tenant_select_callback(
         callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return True
-
-    if await try_handle_tenant_select_blacklist_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return True
-
-    if await try_handle_tenant_select_welcome_callback(
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        username=username,
-        display_name=display_name,
-        data=data,
-        callback_id=callback_id,
-        session=session,
-    ):
-        return True
-
-    if await try_handle_tenant_select_broadcast_callback(
         platform_bot_token=platform_bot_token,
         from_id=from_id,
         username=username,
@@ -139,15 +107,6 @@ async def dispatch_bot_callback(
         session=session,
         bot=bot,
         bot_id=bot_id,
-    ):
-        return True
-
-    if await try_handle_tenant_remove_confirm_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
     ):
         return True
 
