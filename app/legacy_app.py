@@ -187,6 +187,7 @@ from app.services.platform_ad_settings_message_service import try_handle_platfor
 from app.services.platform_dashboard_message_service import try_handle_platform_dashboard_message
 from app.services.platform_tenant_list_menu_message_service import try_handle_platform_tenant_list_menu_message
 from app.services.platform_global_broadcast_menu_message_service import try_handle_platform_global_broadcast_menu_message
+from app.services.platform_users_command_service import try_handle_platform_users_command
 
 # ============================================================
 # Helpers
@@ -659,50 +660,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         ):
             return
 
-        if text.startswith("/users"):
-            parts = text.split(maxsplit=1)
-            if len(parts) < 2:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "用法：/users tenantId",
-                })
-                return
-
-            tenant_id = sanitize_tenant_id(parts[1])
-            if not tenant_id:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "tenantId 无效。",
-                })
-                return
-
-            tenant = await load_tenant(tenant_id)
-            if not tenant:
-                await tg(platform_bot_token, "answerCallbackQuery", {
-                    "callback_query_id": callback_id,
-                    "text": "租户不存在",
-                    "show_alert": True,
-                })
-                return
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "处理中...",
-            })
-
-            users = await list_started_users_by_tenant_id(tenant_id)
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    (await format_tenant_summary_text(tenant))
-                    + "\n\n"
-                    + format_started_users_text(tenant, users)
-                    + "\n\n"
-                    + format_tenant_category_text(tenant)
-                ),
-                "parse_mode": "HTML",
-            })
+        if await try_handle_platform_users_command(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         if text.startswith("/broadcast_all"):
