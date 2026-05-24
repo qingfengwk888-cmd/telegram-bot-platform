@@ -266,27 +266,6 @@ from app.services.platform_blacklist_command_service import try_handle_platform_
 
 
 
-# route moved to app.routes.internal
-async def internal_setup_platform_webhook(
-    request: Request,
-    x_api_key: Optional[str] = Header(default=None),
-    authorization: Optional[str] = Header(default=None),
-):
-    if not require_internal_api_key(x_api_key, authorization):
-        return json_response({"ok": False, "error": "unauthorized"}, 401)
-
-    platform_bot_token = get_platform_bot_token()
-    if not platform_bot_token:
-        return json_response({"ok": False, "error": "platform_bot_token_missing"}, 500)
-
-    url = f"{get_request_origin(request)}/platform/webhook"
-    result = await telegram_raw(platform_bot_token, "setWebhook", {"url": url})
-
-    return {
-        "ok": True,
-        "webhook": {"url": url},
-        "telegram": result,
-    }
 
 
 # ============================================================
