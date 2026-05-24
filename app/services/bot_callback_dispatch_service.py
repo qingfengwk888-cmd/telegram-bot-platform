@@ -9,10 +9,7 @@ async def dispatch_bot_callback(
     username: str,
     display_name: str,
 ) -> bool:
-    from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
-    from app.services.bot_manage_back_to_list_callback_service import try_handle_bot_manage_back_to_list_callback
-    from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
-    from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
+    from app.services.bot_precheck_callback_dispatch_service import dispatch_bot_precheck_callback
     from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
     from app.services.bot_button_callback_service import try_handle_bot_button_callback
     from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
@@ -21,34 +18,10 @@ async def dispatch_bot_callback(
     from app.services.bot_remove_callback_dispatch_service import dispatch_bot_remove_callback
     from app.services.bot_session_action_callback_dispatch_service import dispatch_bot_session_action_callback
 
-    if await try_handle_bot_noop_callback(
-        platform_bot_token=platform_bot_token,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return True
-
-    if await try_handle_bot_manage_back_to_list_callback(
+    if await dispatch_bot_precheck_callback(
         callback_query=callback_query,
         platform_bot_token=platform_bot_token,
         from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return True
-
-    if await try_handle_bot_blacklist_back_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        data=data,
-        callback_id=callback_id,
-    ):
-        return True
-
-    if await try_handle_bot_blacklist_detail_back_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
         data=data,
         callback_id=callback_id,
     ):
