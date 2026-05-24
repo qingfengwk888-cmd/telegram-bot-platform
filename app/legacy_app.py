@@ -1,16 +1,11 @@
 import os
 import re
-import json
-import time
-import uuid
 import html
 import logging
 import asyncio
 from typing import Any, Dict, List, Optional
 
-import httpx
 from fastapi import FastAPI, Header, Request
-from fastapi.responses import JSONResponse
 from app.services.reply_service import (
     reply_rate_limited_for_callback,
     reply_rate_limited_for_message,
@@ -197,9 +192,6 @@ from app.telegram.keyboards import (
 )
 from app.storage.redis_compat import redis_client
 
-from datetime import datetime
-from collections import OrderedDict
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Header, Request
 
 # ============================================================
