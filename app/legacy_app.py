@@ -190,6 +190,7 @@ from app.services.platform_global_broadcast_menu_message_service import try_hand
 from app.services.platform_users_command_service import try_handle_platform_users_command
 from app.services.platform_broadcast_all_command_service import try_handle_platform_broadcast_all_command
 from app.services.platform_broadcast_command_service import try_handle_platform_broadcast_command
+from app.services.platform_admin_help_message_service import try_handle_platform_admin_help_message
 
 # ============================================================
 # Helpers
@@ -683,20 +684,10 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         ):
             return
 
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": (
-                "管理员功能：\n"
-                "1. 🏢 所有租户\n"
-                "2. 👥 租户启动用户\n"
-                "3. 📣 单租户群发\n"
-                "4. 🌐 全部群发\n\n"
-                "也可以直接使用命令：\n"
-                "/users tenantId\n"
-                "/broadcast tenantId 内容\n"
-                "/broadcast_all 内容"
-            ),
-        })
+        await try_handle_platform_admin_help_message(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+        )
         return
 
     # =========================================================
