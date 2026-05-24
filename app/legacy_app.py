@@ -346,6 +346,7 @@ from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_
 from app.services.tenant_select_buttons_callback_service import try_handle_tenant_select_buttons_callback
 from app.services.tenant_select_blacklist_callback_service import try_handle_tenant_select_blacklist_callback
 from app.services.tenant_select_welcome_callback_service import try_handle_tenant_select_welcome_callback
+from app.services.tenant_select_broadcast_callback_service import try_handle_tenant_select_broadcast_callback
 
 # ============================================================
 # Helpers
@@ -3015,76 +3016,18 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    # 第二层：点击设置欢迎语 / 设置按钮
-    m = re.match(r"^tenant_select:(broadcast):(.+)$", data)
-    if m:
-        action = m.group(1)
-        tenant_id = sanitize_tenant_id(m.group(2))
-
-        tenant = await load_tenant(tenant_id)
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        if int(tenant.get("adminChatId", 0)) != int(from_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "你没有权限操作这个机器人",
-                "show_alert": True,
-            })
-            return
-
-        if not session:
-            session = {
-                "mode": "modify",
-                "step": "",
-                "applicantChatId": from_id,
-                "applicantUsername": username,
-                "applicantDisplayName": display_name,
-                "tenantId": "",
-                "tenantName": "",
-                "botUsername": "",
-                "fieldKey": "",
-                "fieldLabel": "",
-                "newValue": "",
-                "buttonDrafts": [],
-                "currentButtonText": "",
-                "currentButtonReply": "",
-            }
-
-        bot_username = str(((tenant.get("botInfo") or {}).get("username") or "")).strip()
-
-        session["tenantId"] = tenant_id
-        session["tenantName"] = tenant.get("tenantName") or tenant_id
-        session["botUsername"] = bot_username
-        if action == "broadcast":
-            if not session:
-                session = {}
-
-            session["mode"] = "tenant_broadcast"
-            session["step"] = "broadcast_input"
-            session["tenantId"] = bot.get("tenantId") or ""
-            session["tenantName"] = bot.get("tenantName") or bot.get("tenantId") or ""
-            session["botId"] = bot_id
-            session["botUsername"] = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-
-            await save_apply_session(from_id, session)
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "已选择机器人",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": f"你正在给 @{session['botUsername'] or bot_id} 的启动用户群发。\n\n请直接发送群发内容。",
-            })
-            return
-
+    if await try_handle_tenant_select_broadcast_callback(
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        username=username,
+        display_name=display_name,
+        data=data,
+        callback_id=callback_id,
+        session=session,
+        bot=bot,
+        bot_id=bot_id,
+    ):
+        return
 
     m_remove = re.match(r"^tenant_remove:(.+)$", data)
     if m_remove:
