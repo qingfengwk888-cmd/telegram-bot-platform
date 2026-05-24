@@ -4,9 +4,16 @@ async def execute_platform_global_broadcast(
     broadcast_text: str,
     target_type: str,
 ) -> tuple[int, int, int]:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.tenant_service import (
+        get_tenant_index,
+        load_tenant,
+        is_platform_tenant_blacklisted,
+        list_started_users_by_tenant_id,
+    )
+    from app.services.bot_service import pick_sender_bot_for_tenant
 
-    tenant_ids = await legacy.get_tenant_index()
+    tenant_ids = await get_tenant_index()
 
     total_target = 0
     success = 0
@@ -17,17 +24,17 @@ async def execute_platform_global_broadcast(
     sent_tenant_user_pairs = set()   # (tenant_id, user_id)
 
     for tenant_id in tenant_ids:
-        tenant = await legacy.load_tenant(tenant_id)
+        tenant = await load_tenant(tenant_id)
         if not tenant:
             continue
 
-        if await legacy.is_platform_tenant_blacklisted(tenant_id):
+        if await is_platform_tenant_blacklisted(tenant_id):
             continue
 
         admin_chat_id = int(tenant.get("adminChatId") or 0)
-        users = await legacy.list_started_users_by_tenant_id(tenant_id)
+        users = await list_started_users_by_tenant_id(tenant_id)
 
-        sender_bot = await legacy.pick_sender_bot_for_tenant(tenant_id)
+        sender_bot = await pick_sender_bot_for_tenant(tenant_id)
         tenant_bot_token = str(sender_bot.get("botToken") or "").strip() if sender_bot else ""
 
         if target_type == "tenants":
@@ -35,7 +42,7 @@ async def execute_platform_global_broadcast(
                 sent_platform_chat_ids.add(admin_chat_id)
                 total_target += 1
                 try:
-                    await legacy.tg(platform_bot_token, "sendMessage", {
+                    await tg(platform_bot_token, "sendMessage", {
                         "chat_id": admin_chat_id,
                         "text": broadcast_text,
                     })
@@ -60,7 +67,7 @@ async def execute_platform_global_broadcast(
                 total_target += 1
 
                 try:
-                    await legacy.tg(tenant_bot_token, "sendMessage", {
+                    await tg(tenant_bot_token, "sendMessage", {
                         "chat_id": user_id,
                         "text": broadcast_text,
                     })
@@ -73,7 +80,7 @@ async def execute_platform_global_broadcast(
                 sent_platform_chat_ids.add(admin_chat_id)
                 total_target += 1
                 try:
-                    await legacy.tg(platform_bot_token, "sendMessage", {
+                    await tg(platform_bot_token, "sendMessage", {
                         "chat_id": admin_chat_id,
                         "text": broadcast_text,
                     })
@@ -97,7 +104,7 @@ async def execute_platform_global_broadcast(
                 total_target += 1
 
                 try:
-                    await legacy.tg(tenant_bot_token, "sendMessage", {
+                    await tg(tenant_bot_token, "sendMessage", {
                         "chat_id": user_id,
                         "text": broadcast_text,
                     })
