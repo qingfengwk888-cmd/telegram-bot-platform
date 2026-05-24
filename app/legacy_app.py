@@ -181,6 +181,7 @@ from app.services.bot_onboarding_service import (create_bot_from_payload, get_or
 from app.services.bot_callback_context_service import build_bot_callback_context
 from app.services.bot_callback_dispatch_service import dispatch_bot_callback
 from app.services.platform_callback_dispatch_service import dispatch_platform_callback
+from app.services.platform_message_dispatch_service import dispatch_platform_message
 from app.services.platform_admin_tenant_broadcast_input_service import try_handle_platform_admin_tenant_broadcast_input
 from app.services.platform_global_broadcast_input_service import try_handle_platform_global_broadcast_input
 from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
@@ -427,246 +428,17 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     name_text = " ".join([x for x in [first_name, last_name] if x]).strip()
     display_name = f"@{username}" if username else (name_text or f"UID:{chat_id}")
 
-    is_platform_admin = (
-        is_primary_platform_admin(chat_id)
-        or is_secondary_platform_admin(chat_id)
-    )
     if await try_handle_platform_blacklist_command(msg):
         return
 
-    session = await load_apply_session(chat_id)
-    session = await interrupt_platform_admin_input_session_if_needed(
-        chat_id=chat_id,
-        text=text,
-        is_platform_admin=is_platform_admin,
-        session=session,
-    )
-
-
-
-    if is_platform_admin and await try_handle_platform_ad_config_input(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
-    ):
-        return
-
-    handled, current_tenant = await check_platform_tenant_message_guard(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        is_platform_admin=is_platform_admin,
-    )
-    if handled:
-        return
-
-    # =========================================================
-    # 首页 / 角色菜单
-    # =========================================================
-    if await try_handle_platform_start_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        is_platform_admin=is_platform_admin,
-    ):
-        return
-
-    if await try_handle_platform_secondary_admin_restricted_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_platform_cancel_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    # =========================================================
-    # 管理员功能区
-    # =========================================================
-    if is_platform_admin and await try_handle_platform_admin_tenant_broadcast_input(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
-    ):
-        return
-
-    if is_platform_admin and await try_handle_platform_global_broadcast_input(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
-    ):
-        return
-
-    if is_platform_admin:
-        if await try_handle_platform_dashboard_message(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        if await try_handle_platform_tenant_list_menu_message(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-
-        if await try_handle_platform_global_broadcast_menu_message(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        if await try_handle_platform_ad_settings_message(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        if await try_handle_platform_users_command(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        if await try_handle_platform_broadcast_all_command(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        if await try_handle_platform_broadcast_command(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-            text=text,
-        ):
-            return
-
-        await try_handle_platform_admin_help_message(
-            platform_bot_token=platform_bot_token,
-            chat_id=chat_id,
-        )
-        return
-
-    # =========================================================
-    # 租户功能区
-    # =========================================================
-
-
-    # 这些文本功能会“打断当前输入态”，直接切走
-    session = await interrupt_tenant_input_session_if_needed(
-        chat_id=chat_id,
-        text=text,
-        session=session,
-        platform_bot_token=platform_bot_token,
-    )
-
-    if await try_handle_tenant_my_bots_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_tenant_apply_start_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        username=username,
-        display_name=display_name,
-        name_text=name_text,
-    ):
-        return
-
-    if await try_handle_tenant_blacklist_view_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_tenant_broadcast_start_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_tenant_help_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_tenant_language_pack_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-    if await try_handle_tenant_modify_deprecated_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-    ):
-        return
-
-
-    # =========================================================
-    # create mode：只有在这里才监听 Bot Token
-    # =========================================================
-    if await try_handle_tenant_create_bot_token_message(
+    if await dispatch_platform_message(
         request=request,
         platform_bot_token=platform_bot_token,
         chat_id=chat_id,
         text=text,
         username=username,
-        display_name=display_name,
         name_text=name_text,
-        session=session,
-    ):
-        return
-
-    # =========================================================
-    # modify mode
-    # =========================================================
-    if await try_handle_tenant_modify_input_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
-    ):
-        return
-
-
-    if await try_handle_platform_admin_tenant_broadcast_legacy_input(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
-    ):
-        return
-    if await try_handle_tenant_broadcast_input_message(
-        platform_bot_token=platform_bot_token,
-        chat_id=chat_id,
-        text=text,
-        session=session,
+        display_name=display_name,
     ):
         return
 
