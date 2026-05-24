@@ -191,6 +191,7 @@ from app.services.platform_users_command_service import try_handle_platform_user
 from app.services.platform_broadcast_all_command_service import try_handle_platform_broadcast_all_command
 from app.services.platform_broadcast_command_service import try_handle_platform_broadcast_command
 from app.services.platform_admin_help_message_service import try_handle_platform_admin_help_message
+from app.services.tenant_my_bots_message_service import try_handle_tenant_my_bots_message
 
 # ============================================================
 # Helpers
@@ -717,28 +718,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
             notify_chat_id=chat_id,
         )
 
-    if text == "📁 我的机器人" or text.startswith("/my"):
-        tenant = await load_tenant_by_admin_chat_id(chat_id)
-        if not tenant:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你暂未接入机器人。",
-            })
-            return
-
-        bots = await list_bots_by_tenant_id(tenant["tenantId"])
-        if not bots:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "你名下暂无机器人。",
-            })
-            return
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "Choose a bot from the list below:",
-            "reply_markup": build_my_bots_entry_buttons(bots),
-        })
+    if await try_handle_tenant_my_bots_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
     if text == "📝 添加机器人" or text.startswith("/apply"):
