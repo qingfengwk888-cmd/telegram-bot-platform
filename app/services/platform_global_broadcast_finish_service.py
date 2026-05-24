@@ -8,13 +8,14 @@ async def finish_platform_global_broadcast_confirm(
     success: int,
     failed: int,
 ) -> None:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.apply_service import clear_apply_session
 
-    await legacy.clear_apply_session(from_id)
+    await clear_apply_session(from_id)
 
     if message.get("chat", {}).get("id") and message.get("message_id"):
         try:
-            await legacy.tg(platform_bot_token, "editMessageReplyMarkup", {
+            await tg(platform_bot_token, "editMessageReplyMarkup", {
                 "chat_id": message["chat"]["id"],
                 "message_id": message["message_id"],
                 "reply_markup": {"inline_keyboard": []},
@@ -28,7 +29,7 @@ async def finish_platform_global_broadcast_confirm(
         "all_people": "所有人",
     }
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
         "text": (
             "🌐 全部群发完成\n"
