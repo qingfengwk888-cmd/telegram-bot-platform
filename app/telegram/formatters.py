@@ -4,15 +4,7 @@ from typing import List, Optional
 
 from app.config import DEFAULT_WELCOME_TEXT
 from app.utils.helpers import escape_html, format_date_ymd
-
-def _legacy():
-    from app import legacy_app
-    return legacy_app
-
-
-# 注意：部分 formatter 暂时仍依赖 legacy_app 内的查询函数。
-# 下一步正式替换 import 时再处理这些依赖。
-
+from app.services.tenant_service import list_bots_by_tenant_id
 
 def format_button_preview(buttons: List[List[dict]]) -> str:
     lines = ["当前按钮预览：", ""]
@@ -50,7 +42,7 @@ async def format_all_tenants_text(tenants: List[dict]) -> str:
         tenant_name = t.get("tenantName") or t.get("tenantId")
         tenant_id = str(t.get("tenantId") or "").strip()
 
-        bots = await _legacy().list_bots_by_tenant_id(tenant_id) if tenant_id else []
+        bots = await list_bots_by_tenant_id(tenant_id) if tenant_id else []
         bot_count_text = str(len(bots))
 
         status = str(t.get("status") or "active")
@@ -76,7 +68,7 @@ async def format_tenant_summary_text(tenant: dict, bots: Optional[List[dict]] = 
     tenant_id = str(tenant.get("tenantId") or "").strip()
 
     if bots is None:
-        bots = await _legacy().list_bots_by_tenant_id(tenant_id) if tenant_id else []
+        bots = await list_bots_by_tenant_id(tenant_id) if tenant_id else []
     bot_count_text = str(len(bots))
 
     status = str(tenant.get("status") or "active")
