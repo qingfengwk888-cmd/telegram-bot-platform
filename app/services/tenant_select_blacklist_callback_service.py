@@ -1,6 +1,10 @@
+import logging
 import re
 import time
 from typing import List
+
+
+logger = logging.getLogger(__name__)
 
 
 async def try_handle_tenant_select_blacklist_callback(
@@ -11,17 +15,20 @@ async def try_handle_tenant_select_blacklist_callback(
     data: str,
     callback_id: str,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id, cost_ms
+    from app.services.tenant_service import load_tenant, list_bots_by_tenant_id
+    from app.services.blacklist_service import list_blacklisted_users, format_tenant_blacklisted_users_text
 
     m = re.match(r"^tenant_select:blacklist:(.+)$", data)
     if not m:
         return False
 
-    tenant_id = legacy.sanitize_tenant_id(m.group(1))
+    tenant_id = sanitize_tenant_id(m.group(1))
 
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant = await load_tenant(tenant_id)
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "机器人不存在",
             "show_alert": True,
@@ -29,7 +36,7 @@ async def try_handle_tenant_select_blacklist_callback(
         return True
 
     if int(tenant.get("adminChatId", 0)) != int(from_id):
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
             "text": "你没有权限操作这个机器人",
             "show_alert": True,
@@ -38,12 +45,12 @@ async def try_handle_tenant_select_blacklist_callback(
 
     started = time.perf_counter()
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "处理中...",
     })
 
-    bots = await legacy.list_bots_by_tenant_id(tenant_id)
+    bots = await list_bots_by_tenant_id(tenant_id)
     all_users: List[dict] = []
 
     for bot in bots:
@@ -51,7 +58,7 @@ async def try_handle_tenant_select_blacklist_callback(
         if not bot_id:
             continue
 
-        users = await legacy.list_blacklisted_users(bot_id)
+        users = await list_blacklisted_users(bot_id)
         bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
 
         for u in users:
@@ -64,17 +71,17 @@ async def try_handle_tenant_select_blacklist_callback(
 
     all_users.sort(key=lambda x: int(x.get("userId") or 0))
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
-        "text": legacy.format_tenant_blacklisted_users_text(tenant, all_users),
+        "text": format_tenant_blacklisted_users_text(tenant, all_users),
         "parse_mode": "HTML",
     })
 
-    legacy.logger.info(
+    logger.info(
         "perf tenant_select:blacklist tenant_id=%s bots=%s users=%s cost_ms=%s",
         tenant_id,
         len(bots),
         len(all_users),
-        legacy.cost_ms(started),
+        cost_ms(started),
     )
     return True
