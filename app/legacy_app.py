@@ -1991,6 +1991,15 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
+    match = re.match(r"^(approve|reject):(.+)$", data)
+    if not match:
+        await tg(platform_bot_token, "answerCallbackQuery", {
+            "callback_query_id": callback_query["id"],
+            "text": "未知操作",
+            "show_alert": True,
+        })
+        return
+
     action = match.group(1)
     apply_id = match.group(2)
     apply = await load_apply(apply_id)
