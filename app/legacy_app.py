@@ -11,6 +11,14 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.ad_service import (
+    platform_ad_config_key,
+    load_platform_ad_config,
+    save_platform_ad_config,
+    delete_platform_ad_config,
+    generate_ad_id,
+    normalize_ad_item,
+)
 from app.services.rate_limit_service import (
     normalize_rate_action,
     bot_user_rate_action_key,
@@ -1185,19 +1193,9 @@ async def reply_rate_limited_for_message(bot: dict, chat_id: int, text: str) -> 
 # Redis storage
 # ============================================================
 
-def platform_ad_config_key() -> str:
-    return "platform:ad:config"
 
 
-async def load_platform_ad_config() -> Optional[dict]:
-    return await redis_get_json(platform_ad_config_key())
 
-
-async def save_platform_ad_config(data: dict) -> None:
-    await redis_set_json(platform_ad_config_key(), data)
-
-def generate_ad_id() -> str:
-    return f"ad_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
 
 async def list_platform_ads() -> List[dict]:
     data = await load_platform_ad_config()
@@ -1215,9 +1213,6 @@ async def get_platform_ad_by_id(ad_id: str) -> Optional[dict]:
 
 async def save_platform_ads(items: List[dict]) -> None:
     await save_platform_ad_config({"items": items})
-
-async def delete_platform_ad_config() -> None:
-    await redis_client.delete(platform_ad_config_key())
 
 
 async def redis_get_json(key: str) -> Optional[dict]:

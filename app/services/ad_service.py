@@ -29,3 +29,19 @@ async def delete_platform_ad_config() -> None:
 
 def generate_ad_id() -> str:
     return f"ad_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+
+
+def normalize_ad_item(item: dict) -> dict:
+    item = item or {}
+
+    ad_id = str(item.get("adId") or item.get("id") or "").strip()
+    if not ad_id:
+        ad_id = generate_ad_id()
+
+    return {
+        "adId": ad_id,
+        "text": str(item.get("text") or "").strip(),
+        "url": str(item.get("url") or "").strip(),
+        "createdAt": int(item.get("createdAt") or now_ms()),
+        "updatedAt": int(item.get("updatedAt") or now_ms()),
+    }
