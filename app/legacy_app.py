@@ -342,6 +342,8 @@ from app.services.bot_modify_submit_callback_service import try_handle_bot_modif
 
 from app.services.bot_button_flow_callback_service import try_handle_bot_button_flow_callback
 
+from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
+
 # ============================================================
 # Helpers
 # ============================================================
@@ -2946,89 +2948,14 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    # 第一层：点击机器人名字进入第二层操作菜单（不依赖 session）
-    m_manage = re.match(r"^tenant_manage:(.+)$", data)
-    if m_manage:
-        tenant_id = sanitize_tenant_id(m_manage.group(1))
-        tenant = await load_tenant(tenant_id)
-
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        if int(tenant.get("adminChatId", 0)) != int(from_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "你没有权限操作这个机器人",
-                "show_alert": True,
-            })
-            return
-
-        bot = await pick_default_bot_for_tenant(tenant_id)
-        if not bot:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "该租户下暂无可操作机器人",
-                "show_alert": True,
-            })
-            return
-
-        bot_id = str(bot.get("botId") or "").strip()
-        bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-        show_name = f"@{bot_username}" if bot_username else (bot.get("tenantName") or bot_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "请选择操作",
-        })
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": f"当前机器人：{show_name}",
-            "reply_markup": build_single_bot_action_buttons(bot_id),
-        })
-        return
-
-    m_manage = re.match(r"^bot_manage:(.+)$", data)
-    if m_manage:
-        bot_id = sanitize_tenant_id(m_manage.group(1))
-        bot = bot or await load_bot(bot_id)
-
-        if not bot:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        if int(bot.get("adminChatId", 0)) != int(from_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "你没有权限操作这个机器人",
-                "show_alert": True,
-            })
-            return
-
-        bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-        show_name = f"@{bot_username}" if bot_username else (bot.get("tenantName") or bot_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "请选择操作",
-        })
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": f"当前机器人：{show_name}",
-            "reply_markup": build_single_bot_action_buttons(bot_id),
-        })
+    if await try_handle_bot_manage_menu_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+        bot=bot,
+    ):
         return
 
     # 从这里开始才需要 session
