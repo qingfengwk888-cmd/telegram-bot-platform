@@ -20,6 +20,7 @@ from app.storage.repository import (
 )
 from app.utils.helpers import sanitize_tenant_id, escape_html, format_date_ymd, now_ms, is_primary_platform_admin, is_secondary_platform_admin
 from app.services.notice_service import get_platform_notice_target
+from app.services.tenant_service import list_bots_by_tenant_id
 
 
 def bot_user_black_key(bot_id: str, user_id: int) -> str:
@@ -35,14 +36,41 @@ def platform_tenant_black_key(tenant_id: str) -> str:
 
 
 async def is_tenant_user_blacklisted(tenant_id: str, user_id: int) -> bool:
-    # 临时兼容：租户维度用户黑名单目前仍走 legacy 逻辑
-    from app import legacy_app
-    return await legacy_app.is_tenant_user_blacklisted(tenant_id, user_id)
+    bots = await list_bots_by_tenant_id(tenant_id)
+
+    for bot in bots:
+        bot_id = str(bot.get("botId") or "").strip()
+        if not bot_id:
+            continue
+
+        if await is_bot_user_blacklisted_db(bot_id, user_id):
+            return True
+
+    return False
 
 
 async def list_blacklisted_users_by_tenant_id(tenant_id: str) -> List[dict]:
-    from app import legacy_app
-    return await legacy_app.list_blacklisted_users_by_tenant_id(tenant_id)
+    bots = await list_bots_by_tenant_id(tenant_id)
+    all_users: List[dict] = []
+
+    for bot in bots:
+        bot_id = str(bot.get("botId") or "").strip()
+        if not bot_id:
+            continue
+
+        bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
+        users = await list_bot_blacklisted_users_db(bot_id)
+
+        for user in users:
+            all_users.append({
+                **user,
+                "botId": bot_id,
+                "botUsername": bot_username,
+                "tenantId": tenant_id,
+            })
+
+    all_users.sort(key=lambda x: int(x.get("userId") or 0))
+    return all_users
 
 
 async def list_blacklisted_users(bot_id: str) -> List[dict]:
