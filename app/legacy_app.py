@@ -371,6 +371,7 @@ from app.services.platform_global_broadcast_target_select_callback_service impor
 from app.services.platform_noop_callback_service import try_handle_platform_noop_callback
 from app.services.admin_tenant_menu_callback_service import try_handle_admin_tenant_menu_callback
 from app.services.platform_ad_pick_callback_service import try_handle_platform_ad_pick_callback
+from app.services.platform_ad_menu_callback_service import try_handle_platform_ad_menu_callback
 
 # ============================================================
 # Helpers
@@ -1917,85 +1918,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    menu_match = re.match(r"^platform_ad_menu:(add|edit|delete)$", data)
-    if menu_match:
-        action = menu_match.group(1)
-
-        if not (is_primary_platform_admin(from_id) or is_secondary_platform_admin(from_id)):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "无权限操作",
-                "show_alert": True,
-            })
-            return
-
-        if action == "add":
-            await save_apply_session(from_id, {
-                "mode": "platform_ad_config",
-                "step": "ad_text_input",
-                "action": "add",
-            })
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "请发送广告文案",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": (
-                    "请输入广告文案。\n\n"
-                    "要求：\n"
-                    "1. 只显示一行\n"
-                    "2. 不超过 20 个字\n"
-                    "3. 例如：联系官方招商"
-                ),
-            })
-            return
-
-        if action == "edit":
-            items = await list_platform_ads()
-            if not items:
-                await tg(platform_bot_token, "answerCallbackQuery", {
-                    "callback_query_id": callback_query["id"],
-                    "text": "当前没有广告可修改",
-                    "show_alert": True,
-                })
-                return
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "请选择要修改的广告",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": "请选择要修改的广告：",
-                "reply_markup": build_platform_ad_pick_buttons(items, "edit"),
-            })
-            return
-
-        if action == "delete":
-            items = await list_platform_ads()
-            if not items:
-                await tg(platform_bot_token, "answerCallbackQuery", {
-                    "callback_query_id": callback_query["id"],
-                    "text": "当前没有广告可删除",
-                    "show_alert": True,
-                })
-                return
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "请选择要删除的广告",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": "请选择要删除的广告：",
-                "reply_markup": build_platform_ad_pick_buttons(items, "delete"),
-            })
-            return
+    if await try_handle_platform_ad_menu_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+    ):
+        return
 
     broadcast_match = re.match(r"^admin_tenant_broadcast:(.+)$", data)
     if broadcast_match:
