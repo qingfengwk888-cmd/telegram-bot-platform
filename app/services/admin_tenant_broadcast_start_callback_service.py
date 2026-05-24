@@ -8,32 +8,35 @@ async def try_handle_admin_tenant_broadcast_start_callback(
     from_id: int,
     data: str,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id
+    from app.services.tenant_service import load_tenant, is_platform_tenant_blacklisted
+    from app.services.apply_service import save_apply_session
 
     broadcast_match = re.match(r"^admin_tenant_broadcast:(.+)$", data)
     if not broadcast_match:
         return False
 
-    tenant_id = legacy.sanitize_tenant_id(broadcast_match.group(1))
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant_id = sanitize_tenant_id(broadcast_match.group(1))
+    tenant = await load_tenant(tenant_id)
 
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "租户不存在或已删除",
             "show_alert": True,
         })
         return True
 
-    if await legacy.is_platform_tenant_blacklisted(tenant_id):
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    if await is_platform_tenant_blacklisted(tenant_id):
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "该租户已被拉黑，禁止群发",
             "show_alert": True,
         })
         return True
 
-    await legacy.save_apply_session(from_id, {
+    await save_apply_session(from_id, {
         "mode": "admin_tenant_broadcast",
         "step": "broadcast_input",
         "tenantId": tenant_id,
@@ -41,12 +44,12 @@ async def try_handle_admin_tenant_broadcast_start_callback(
         "botUsername": str(((tenant.get("botInfo") or {}).get("username") or "")).strip(),
     })
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "请直接发送群发内容",
     })
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
         "text": (
             f"你正在给租户 {tenant.get('tenantName') or tenant_id} "
