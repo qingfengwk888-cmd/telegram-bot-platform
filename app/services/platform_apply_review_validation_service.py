@@ -4,12 +4,13 @@ async def load_and_validate_platform_apply_review(
     platform_bot_token: str,
     apply_id: str,
 ):
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.apply_service import load_apply
 
-    apply = await legacy.load_apply(apply_id)
+    apply = await load_apply(apply_id)
 
     if not apply:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "申请不存在或已过期",
             "show_alert": True,
@@ -17,7 +18,7 @@ async def load_and_validate_platform_apply_review(
         return False, None
 
     if apply.get("status") != "pending":
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": f"该申请已处理：{apply.get('status')}",
             "show_alert": True,
