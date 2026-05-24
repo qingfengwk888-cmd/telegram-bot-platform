@@ -5,52 +5,60 @@ async def validate_admin_tenant_broadcast_confirm_session(
     from_id: int,
     session: dict | None,
 ):
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id
+    from app.services.apply_service import clear_apply_session
+    from app.services.tenant_service import (
+        load_tenant,
+        is_platform_tenant_blacklisted,
+        list_started_users_by_tenant_id,
+    )
+    from app.services.bot_service import load_bot
 
     if not session or session.get("mode") != "admin_tenant_broadcast" or session.get("step") != "broadcast_confirm":
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "群发会话已失效，请重新操作",
             "show_alert": True,
         })
         return False, "", "", None, None, []
 
-    tenant_id = legacy.sanitize_tenant_id(session.get("tenantId") or "")
+    tenant_id = sanitize_tenant_id(session.get("tenantId") or "")
     broadcast_text = str(session.get("broadcastText") or "").strip()
-    sender_bot_id = legacy.sanitize_tenant_id(session.get("senderBotId") or "")
+    sender_bot_id = sanitize_tenant_id(session.get("senderBotId") or "")
 
     if not tenant_id or not broadcast_text or not sender_bot_id:
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "群发内容无效，请重新操作",
             "show_alert": True,
         })
         return False, "", "", None, None, []
 
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant = await load_tenant(tenant_id)
     if not tenant:
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "租户不存在或已删除",
             "show_alert": True,
         })
         return False, "", "", None, None, []
 
-    if await legacy.is_platform_tenant_blacklisted(tenant_id):
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    if await is_platform_tenant_blacklisted(tenant_id):
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "该租户已被拉黑，禁止群发",
             "show_alert": True,
         })
         return False, "", "", None, None, []
 
-    sender_bot = await legacy.load_bot(sender_bot_id)
+    sender_bot = await load_bot(sender_bot_id)
     if not sender_bot or str(sender_bot.get("status") or "active") != "active":
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "发送机器人不存在或不可用",
             "show_alert": True,
@@ -58,18 +66,18 @@ async def validate_admin_tenant_broadcast_confirm_session(
         return False, "", "", None, None, []
 
     if str(sender_bot.get("tenantId") or "") != tenant_id:
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "发送机器人与租户不匹配",
             "show_alert": True,
         })
         return False, "", "", None, None, []
 
-    users = await legacy.list_started_users_by_tenant_id(tenant_id)
+    users = await list_started_users_by_tenant_id(tenant_id)
     if not users:
-        await legacy.clear_apply_session(from_id)
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await clear_apply_session(from_id)
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "该租户暂无启动用户",
             "show_alert": True,
