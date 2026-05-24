@@ -181,6 +181,7 @@ from app.services.bot_onboarding_service import (create_bot_from_payload, get_or
 from app.services.bot_callback_context_service import build_bot_callback_context
 from app.services.bot_callback_dispatch_service import dispatch_bot_callback
 from app.services.platform_callback_dispatch_service import dispatch_platform_callback
+from app.services.platform_admin_tenant_broadcast_input_service import try_handle_platform_admin_tenant_broadcast_input
 
 # ============================================================
 # Helpers
@@ -607,82 +608,13 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     # =========================================================
     # 管理员功能区
     # =========================================================
-    if is_platform_admin and session and session.get("mode") == "admin_tenant_broadcast":
-        if session.get("step") == "broadcast_input":
-            tenant_id = sanitize_tenant_id(session.get("tenantId") or "")
-            broadcast_text = text.strip()
-
-            if not tenant_id or not broadcast_text:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "群发内容不能为空。",
-                })
-                return
-
-            tenant = await load_tenant(tenant_id)
-            if not tenant:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "租户不存在或已删除。",
-                })
-                return
-
-            if await is_platform_tenant_blacklisted(tenant_id):
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户已被拉黑，禁止群发。",
-                })
-                return
-
-            sender_bot = await pick_sender_bot_for_tenant(tenant_id)
-            if not sender_bot:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户暂无可用机器人，无法群发。",
-                })
-                return
-
-            users = await list_started_users_by_tenant_id(tenant_id)
-            if not users:
-                await clear_apply_session(chat_id)
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户暂无启动用户，无法群发。",
-                })
-                return
-
-            session["step"] = "broadcast_confirm"
-            session["broadcastText"] = broadcast_text
-            session["targetCount"] = len(users)
-            session["senderBotId"] = str(sender_bot.get("botId") or "")
-            session["senderBotUsername"] = str(((sender_bot.get("botInfo") or {}).get("username") or "")).strip()
-            await save_apply_session(chat_id, session)
-
-            sender_show = (
-                f"@{session['senderBotUsername']}"
-                if session["senderBotUsername"] else session["senderBotId"]
-            )
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    f"📣 即将群发给租户：{tenant.get('tenantName') or tenant_id}\n"
-                    f"发送机器人：{sender_show}\n"
-                    f"目标人数：{len(users)}\n\n"
-                    f"群发内容：\n{broadcast_text}\n\n"
-                    "请确认是否发送。"
-                ),
-                "reply_markup": {
-                    "inline_keyboard": [[
-                        {"text": "✅ 确认", "callback_data": "admin_tenant_broadcast_confirm"},
-                        {"text": "❌ 取消", "callback_data": "admin_tenant_broadcast_cancel"},
-                    ]]
-                },
-            })
-            return
+    if is_platform_admin and await try_handle_platform_admin_tenant_broadcast_input(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+        session=session,
+    ):
+        return
 
     if is_platform_admin and session and session.get("mode") == "platform_global_broadcast":
         if session.get("step") == "broadcast_input":
