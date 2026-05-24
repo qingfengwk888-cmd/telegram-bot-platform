@@ -25,8 +25,8 @@ async def bot_webhook(
     子机器人 webhook 路由。
 
     当前阶段：
-    - 路由入口已经迁出 legacy_app
-    - 业务处理函数仍临时调用 legacy_app
+    - 路由入口已迁出旧单文件入口
+    - 业务处理函数已拆分到 services
     """
     try:
         bot = await load_bot(bot_id)

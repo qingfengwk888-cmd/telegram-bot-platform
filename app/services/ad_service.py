@@ -6,7 +6,7 @@ from app.storage.redis_compat import redis_client
 from app.storage.repository import redis_get_json_db, redis_set_json_db, kv_delete_db
 from app.utils.helpers import now_ms
 
-# 兼容 legacy_app 里的旧函数名
+# 兼容旧函数名
 redis_get_json = redis_get_json_db
 redis_set_json = redis_set_json_db
 

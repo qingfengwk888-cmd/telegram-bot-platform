@@ -13,7 +13,7 @@ from app.services.bot_service import load_bot, save_bot
 from app.services.bot_onboarding_service import create_bot_from_payload
 
 
-# 兼容 legacy_app 旧函数名
+# 兼容旧函数名
 redis_get_json = redis_get_json_db
 redis_set_json = redis_set_json_db
 

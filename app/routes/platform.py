@@ -60,8 +60,8 @@ async def platform_webhook(request: Request):
     平台机器人 webhook 路由。
 
     当前阶段：
-    - 路由逻辑已经迁出 legacy_app
-    - 具体业务处理函数仍临时调用 legacy_app
+    - 路由逻辑已迁出旧单文件入口
+    - 具体业务处理函数已拆分到 services
     """
     try:
         update = await request.json()
