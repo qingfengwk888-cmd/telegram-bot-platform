@@ -79,8 +79,6 @@ from app.telegram.keyboards import (
     build_admin_tenant_root_menu_buttons,
 )
 
-from fastapi import FastAPI, Header, Request
-
 # ============================================================
 # Config
 # ============================================================
