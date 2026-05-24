@@ -347,6 +347,7 @@ from app.services.tenant_select_buttons_callback_service import try_handle_tenan
 from app.services.tenant_select_blacklist_callback_service import try_handle_tenant_select_blacklist_callback
 from app.services.tenant_select_welcome_callback_service import try_handle_tenant_select_welcome_callback
 from app.services.tenant_select_broadcast_callback_service import try_handle_tenant_select_broadcast_callback
+from app.services.tenant_remove_confirm_callback_service import try_handle_tenant_remove_confirm_callback
 
 # ============================================================
 # Helpers
@@ -3029,44 +3030,14 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    m_remove = re.match(r"^tenant_remove:(.+)$", data)
-    if m_remove:
-        tenant_id = sanitize_tenant_id(m_remove.group(1))
-        tenant = await load_tenant(tenant_id)
-
-        if not tenant:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        if int(tenant.get("adminChatId", 0)) != int(from_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "你没有权限操作这个机器人",
-                "show_alert": True,
-            })
-            return
-
-        bot_username = str(((tenant.get("botInfo") or {}).get("username") or "")).strip()
-        show_name = f"@{bot_username}" if bot_username else (tenant.get("tenantName") or tenant_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "请确认",
-        })
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": f"确认移除机器人 {show_name} 吗？",
-            "reply_markup": build_remove_confirm_buttons(tenant_id),
-        })
+    if await try_handle_tenant_remove_confirm_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
-
-
 
     if data == "bot_remove_cancel":
         await tg(platform_bot_token, "answerCallbackQuery", {
