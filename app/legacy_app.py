@@ -185,6 +185,7 @@ from app.services.platform_admin_tenant_broadcast_input_service import try_handl
 from app.services.platform_global_broadcast_input_service import try_handle_platform_global_broadcast_input
 from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
 from app.services.platform_dashboard_message_service import try_handle_platform_dashboard_message
+from app.services.platform_tenant_list_menu_message_service import try_handle_platform_tenant_list_menu_message
 
 # ============================================================
 # Helpers
@@ -635,12 +636,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         ):
             return
 
-        if text == "🏢 所有租户":
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "🏢 所有租户\n\n请选择查看方式：",
-                "reply_markup": build_admin_tenant_root_menu_buttons(),
-            })
+        if await try_handle_platform_tenant_list_menu_message(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
 
