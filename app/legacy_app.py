@@ -345,6 +345,7 @@ from app.services.bot_button_flow_callback_service import try_handle_bot_button_
 from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
 from app.services.tenant_select_buttons_callback_service import try_handle_tenant_select_buttons_callback
 from app.services.tenant_select_blacklist_callback_service import try_handle_tenant_select_blacklist_callback
+from app.services.tenant_select_welcome_callback_service import try_handle_tenant_select_welcome_callback
 
 # ============================================================
 # Helpers
@@ -3003,8 +3004,19 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
+    if await try_handle_tenant_select_welcome_callback(
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        username=username,
+        display_name=display_name,
+        data=data,
+        callback_id=callback_id,
+        session=session,
+    ):
+        return
+
     # 第二层：点击设置欢迎语 / 设置按钮
-    m = re.match(r"^tenant_select:(welcome|buttons|blacklist|broadcast):(.+)$", data)
+    m = re.match(r"^tenant_select:(broadcast):(.+)$", data)
     if m:
         action = m.group(1)
         tenant_id = sanitize_tenant_id(m.group(2))
@@ -3073,41 +3085,6 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
             })
             return
 
-        if action == "welcome":
-            session["fieldKey"] = "welcomeText"
-            session["fieldLabel"] = "欢迎语"
-            session["step"] = "welcome_text_input"
-            session["newValue"] = ""
-            session["buttonDrafts"] = []
-            session["currentButtonText"] = ""
-            session["currentButtonReply"] = ""
-        else:
-            session["fieldKey"] = "welcomeButtons"
-            session["fieldLabel"] = "按钮"
-            session["step"] = "button_text_input"
-            session["newValue"] = []
-            session["buttonDrafts"] = []
-            session["currentButtonText"] = ""
-            session["currentButtonReply"] = ""
-
-        await save_apply_session(from_id, session)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "已选择机器人",
-        })
-
-        if action == "welcome":
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": f"你正在修改 @{bot_username or tenant_id} 的欢迎语。\n\n请直接发送新的欢迎语内容。",
-            })
-        else:
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": f"你正在修改 @{bot_username or tenant_id} 的按钮。\n\n请先发送按钮名称，例如：官网 / 联系客服 / 立即注册",
-            })
-        return
 
     m_remove = re.match(r"^tenant_remove:(.+)$", data)
     if m_remove:
