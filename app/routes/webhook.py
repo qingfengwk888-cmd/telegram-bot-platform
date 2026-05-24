@@ -5,6 +5,12 @@ from fastapi import APIRouter, Header, Request
 from app.core.logger import logger
 from app.telegram.api import tg
 from app.utils.helpers import json_response
+from app.services.bot_service import load_bot
+from app.services.rate_limit_service import is_duplicate_update, get_bot_user_rate_limit_status
+from app.services.tenant_service import is_platform_tenant_blacklisted
+from app.services.message_parse_service import should_handle_as_admin_message
+from app.services.admin_message_service import handle_admin_message
+from app.services.user_message_service import handle_user_message
 
 router = APIRouter()
 
@@ -22,10 +28,8 @@ async def bot_webhook(
     - 路由入口已经迁出 legacy_app
     - 业务处理函数仍临时调用 legacy_app
     """
-    from app import legacy_app
-
     try:
-        bot = await legacy_app.load_bot(bot_id)
+        bot = await load_bot(bot_id)
         if not bot:
             return json_response({"ok": False, "error": "bot_not_found"}, 404)
 
@@ -39,7 +43,7 @@ async def bot_webhook(
 
         update = await request.json()
 
-        if await legacy_app.is_duplicate_update(f"bot:{bot_id}", update.get("update_id")):
+        if await is_duplicate_update(f"bot:{bot_id}", update.get("update_id")):
             return {"ok": True, "botId": bot_id, "ignored": "duplicate_update"}
 
         if update.get("callback_query"):
@@ -49,7 +53,7 @@ async def bot_webhook(
             callback_id = callback_query.get("id")
             data = str(callback_query.get("data") or "").strip()
 
-            limit_result = await legacy_app.get_bot_user_rate_limit_status(
+            limit_result = await get_bot_user_rate_limit_status(
                 bot_id=bot_id,
                 user_id=from_id,
                 action=f"callback:{data}",
@@ -81,7 +85,7 @@ async def bot_webhook(
         admin_chat_id = int(bot["adminChatId"])
         tenant_id = str(bot.get("tenantId") or "").strip()
 
-        if tenant_id and await legacy_app.is_platform_tenant_blacklisted(tenant_id):
+        if tenant_id and await is_platform_tenant_blacklisted(tenant_id):
             if int(from_id) == int(admin_chat_id):
                 await tg(bot["botToken"], "sendMessage", {
                     "chat_id": admin_chat_id,
@@ -92,14 +96,14 @@ async def bot_webhook(
             return {"ok": True, "botId": bot_id, "role": "tenant_blacklisted_ignored"}
 
         if int(from_id) == int(admin_chat_id):
-            if legacy_app.should_handle_as_admin_message(msg):
-                await legacy_app.handle_admin_message(msg, bot)
+            if should_handle_as_admin_message(msg):
+                await handle_admin_message(msg, bot)
                 return {"ok": True, "botId": bot_id, "role": "admin"}
 
-            await legacy_app.handle_user_message(msg, bot)
+            await handle_user_message(msg, bot)
             return {"ok": True, "botId": bot_id, "role": "admin_as_user"}
 
-        await legacy_app.handle_user_message(msg, bot)
+        await handle_user_message(msg, bot)
         return {"ok": True, "botId": bot_id, "role": "user"}
 
     except Exception as err:
