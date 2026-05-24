@@ -351,6 +351,7 @@ from app.services.tenant_remove_confirm_callback_service import try_handle_tenan
 from app.services.bot_callback_session_required_service import try_handle_missing_bot_callback_session
 from app.services.bot_callback_unknown_action_service import answer_unknown_bot_callback_action
 from app.services.bot_remove_cancel_callback_service import try_handle_bot_remove_cancel_callback
+from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
 
 # ============================================================
 # Helpers
@@ -2855,11 +2856,11 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     name_text = " ".join([x for x in [first_name, last_name] if x]).strip()
     display_name = f"@{username}" if username else (name_text or f"UID:{from_id}")
 
-    if data == "bot_noop":
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "暂无可操作机器人",
-        })
+    if await try_handle_bot_noop_callback(
+        platform_bot_token=platform_bot_token,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
 
     if data == "bot_manage:back_to_list":
