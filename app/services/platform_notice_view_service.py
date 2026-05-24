@@ -36,7 +36,9 @@ async def refresh_tenant_detail_message(
     chat_id: int,
     message_id: int,
     tenant_id: str,
+    tenant: dict | None = None,
     message: dict | None = None,
+    **_ignored,
 ) -> None:
     from app.telegram.api import tg
     from app.services.tenant_service import (
@@ -51,7 +53,8 @@ async def refresh_tenant_detail_message(
     )
     from app.telegram.keyboards import build_tenant_detail_action_buttons
 
-    tenant = await load_tenant(tenant_id)
+    if tenant is None:
+        tenant = await load_tenant(tenant_id)
     if not tenant:
         return
 
