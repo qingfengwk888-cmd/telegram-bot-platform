@@ -383,6 +383,7 @@ from app.services.platform_apply_review_validation_service import load_and_valid
 from app.services.platform_apply_reject_callback_service import try_handle_platform_apply_reject_callback
 from app.services.platform_apply_approve_update_callback_service import try_handle_platform_apply_approve_update_callback
 from app.services.platform_apply_approve_create_callback_service import handle_platform_apply_approve_create_callback
+from app.services.platform_apply_approve_callback_service import try_handle_platform_apply_approve_callback
 
 # ============================================================
 # Helpers
@@ -2024,45 +2025,17 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    if action == "approve":
-        try:
-            if await try_handle_platform_apply_approve_update_callback(
-                callback_query=callback_query,
-                platform_bot_token=platform_bot_token,
-                from_id=from_id,
-                action=action,
-                apply=apply,
-                message=message,
-            ):
-                return
+    if await try_handle_platform_apply_approve_callback(
+        request=request,
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        action=action,
+        apply=apply,
+        message=message,
+    ):
+        return
 
-            await handle_platform_apply_approve_create_callback(
-                request=request,
-                callback_query=callback_query,
-                platform_bot_token=platform_bot_token,
-                from_id=from_id,
-                apply=apply,
-                message=message,
-            )
-            return
-
-        except Exception as err:
-            logger.exception("approve apply failed")
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "处理失败，查看日志",
-                "show_alert": True,
-            })
-
-            if message.get("chat", {}).get("id"):
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": message["chat"]["id"],
-                    "text": (
-                        "❌ 处理申请失败\n"
-                        f"申请ID：{apply.get('applyId')}\n"
-                        f"错误：{str(err)}"
-                    ),
-                })
 
 async def handle_bot_callback_query(callback_query: dict, request: Request) -> None:
     platform_bot_token = get_platform_bot_token()
