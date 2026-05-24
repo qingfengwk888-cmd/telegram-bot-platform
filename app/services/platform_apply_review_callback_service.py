@@ -10,7 +10,7 @@ async def try_handle_platform_apply_review_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
     from app.services.platform_apply_review_validation_service import (
         load_and_validate_platform_apply_review,
     )
@@ -23,7 +23,7 @@ async def try_handle_platform_apply_review_callback(
 
     match = re.match(r"^(approve|reject):(.+)$", data)
     if not match:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "未知操作",
             "show_alert": True,

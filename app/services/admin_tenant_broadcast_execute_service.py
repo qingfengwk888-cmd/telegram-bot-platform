@@ -4,7 +4,7 @@ async def execute_admin_tenant_broadcast(
     users: list,
     broadcast_text: str,
 ) -> tuple[int, int]:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
 
     success = 0
     failed = 0
@@ -12,7 +12,7 @@ async def execute_admin_tenant_broadcast(
     for u in users:
         user_id = int(u["userId"])
         try:
-            await legacy.tg(sender_bot["botToken"], "sendMessage", {
+            await tg(sender_bot["botToken"], "sendMessage", {
                 "chat_id": user_id,
                 "text": broadcast_text,
             })

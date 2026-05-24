@@ -3,9 +3,9 @@ async def answer_unknown_bot_callback_action(
     platform_bot_token: str,
     callback_id: str,
 ) -> None:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "未知操作",
         "show_alert": True,

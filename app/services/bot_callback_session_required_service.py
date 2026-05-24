@@ -4,12 +4,12 @@ async def try_handle_missing_bot_callback_session(
     callback_id: str,
     session: dict | None,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
 
     if session:
         return False
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "会话已过期，请重新开始",
         "show_alert": True,

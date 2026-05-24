@@ -5,16 +5,16 @@ async def try_handle_bot_remove_cancel_callback(
     data: str,
     callback_id: str,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
 
     if data != "bot_remove_cancel":
         return False
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_id,
         "text": "已取消",
     })
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
         "text": "已取消移除操作。",
     })
