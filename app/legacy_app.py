@@ -367,6 +367,7 @@ from app.services.admin_tenant_broadcast_confirm_validation_service import valid
 from app.services.admin_tenant_broadcast_execute_service import execute_admin_tenant_broadcast
 from app.services.admin_tenant_broadcast_finish_service import finish_admin_tenant_broadcast_confirm
 from app.services.platform_global_broadcast_target_cancel_callback_service import try_handle_platform_global_broadcast_target_cancel_callback
+from app.services.platform_global_broadcast_target_select_callback_service import try_handle_platform_global_broadcast_target_select_callback
 
 # ============================================================
 # Helpers
@@ -1882,38 +1883,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    if data.startswith("platform_global_broadcast_target:"):
-        target_type = data.split(":", 1)[1].strip()
-
-        if target_type not in {"tenants", "tenant_users", "all_people"}:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "无效的群发范围",
-                "show_alert": True,
-            })
-            return
-
-        await save_apply_session(from_id, {
-            "mode": "platform_global_broadcast",
-            "step": "broadcast_input",
-            "targetType": target_type,
-        })
-
-        target_label_map = {
-            "tenants": "全部租户",
-            "tenant_users": "全部租户的用户",
-            "all_people": "所有人",
-        }
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": f"已选择：{target_label_map[target_type]}",
-        })
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": f"你正在给【{target_label_map[target_type]}】群发。\n\n请直接发送群发内容。",
-        })
+    if await try_handle_platform_global_broadcast_target_select_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+    ):
         return
 
     if data == "noop":
