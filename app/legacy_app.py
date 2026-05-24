@@ -368,6 +368,7 @@ from app.services.admin_tenant_broadcast_execute_service import execute_admin_te
 from app.services.admin_tenant_broadcast_finish_service import finish_admin_tenant_broadcast_confirm
 from app.services.platform_global_broadcast_target_cancel_callback_service import try_handle_platform_global_broadcast_target_cancel_callback
 from app.services.platform_global_broadcast_target_select_callback_service import try_handle_platform_global_broadcast_target_select_callback
+from app.services.platform_noop_callback_service import try_handle_platform_noop_callback
 
 # ============================================================
 # Helpers
@@ -1891,11 +1892,11 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    if data == "noop":
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "暂无可操作内容",
-        })
+    if await try_handle_platform_noop_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        data=data,
+    ):
         return
 
     menu_match = re.match(r"^admin_tenant_menu:(traffic|category)$", data)
