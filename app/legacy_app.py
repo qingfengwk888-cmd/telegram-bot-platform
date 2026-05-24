@@ -186,6 +186,7 @@ from app.services.platform_global_broadcast_input_service import try_handle_plat
 from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
 from app.services.platform_dashboard_message_service import try_handle_platform_dashboard_message
 from app.services.platform_tenant_list_menu_message_service import try_handle_platform_tenant_list_menu_message
+from app.services.platform_global_broadcast_menu_message_service import try_handle_platform_global_broadcast_menu_message
 
 # ============================================================
 # Helpers
@@ -644,14 +645,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
             return
 
 
-        if text == "🌐 全部群发":
-            await clear_apply_session(chat_id)
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": "请选择群发范围：",
-                "reply_markup": build_global_broadcast_target_buttons(),
-            })
+        if await try_handle_platform_global_broadcast_menu_message(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         if await try_handle_platform_ad_settings_message(
