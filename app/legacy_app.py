@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.core.lifespan import lifespan
 from app.services.user_service import (
     find_bot_button_reply,
     bot_user_profile_key,
@@ -234,46 +235,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(APP_NAME)
 
-app = FastAPI(title=APP_NAME)
 # redis_client 已由 app.storage.redis_compat 提供
 # telegram_http_client 已迁移到 app.telegram.api
 
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global telegram_http_client
-
-    telegram_http_client = httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
-        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
-    )
-    set_telegram_http_client(telegram_http_client)
-
-    base_url = os.getenv("BASE_URL", "").strip()
-
-    if not base_url:
-        logger.info("BASE_URL not set, skip platform webhook setup")
-    elif not PLATFORM_BOT_TOKEN:
-        logger.info("PLATFORM_BOT_TOKEN not set, skip platform webhook setup")
-    else:
-        try:
-            result = await telegram_raw(
-                PLATFORM_BOT_TOKEN,
-                "setWebhook",
-                {"url": f"{base_url}/platform/webhook"}
-            )
-            logger.info("platform webhook setup result: %s", result)
-        except Exception:
-            logger.exception("failed to auto setup platform webhook")
-
-    try:
-        yield
-    finally:
-        if telegram_http_client is not None:
-            await telegram_http_client.aclose()
-            telegram_http_client = None
-            set_telegram_http_client(None)
 
 app = FastAPI(title=APP_NAME, lifespan=lifespan)
 app.include_router(health_router)
