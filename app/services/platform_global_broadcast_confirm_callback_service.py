@@ -6,7 +6,8 @@ async def try_handle_platform_global_broadcast_confirm_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.apply_service import load_apply_session
     from app.services.platform_global_broadcast_confirm_validation_service import (
         validate_platform_global_broadcast_confirm_session,
     )
@@ -20,7 +21,7 @@ async def try_handle_platform_global_broadcast_confirm_callback(
     if data != "platform_global_broadcast_confirm":
         return False
 
-    session = await legacy.load_apply_session(from_id)
+    session = await load_apply_session(from_id)
     valid, broadcast_text, target_type = await validate_platform_global_broadcast_confirm_session(
         platform_bot_token=platform_bot_token,
         callback_query=callback_query,
@@ -30,7 +31,7 @@ async def try_handle_platform_global_broadcast_confirm_callback(
     if not valid:
         return True
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "开始全部群发",
     })

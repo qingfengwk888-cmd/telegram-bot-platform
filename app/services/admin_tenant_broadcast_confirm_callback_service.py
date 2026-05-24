@@ -6,7 +6,8 @@ async def try_handle_admin_tenant_broadcast_confirm_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.apply_service import load_apply_session
     from app.services.admin_tenant_broadcast_confirm_validation_service import (
         validate_admin_tenant_broadcast_confirm_session,
     )
@@ -20,7 +21,7 @@ async def try_handle_admin_tenant_broadcast_confirm_callback(
     if data != "admin_tenant_broadcast_confirm":
         return False
 
-    session = await legacy.load_apply_session(from_id)
+    session = await load_apply_session(from_id)
     valid, tenant_id, broadcast_text, tenant, sender_bot, users = await validate_admin_tenant_broadcast_confirm_session(
         platform_bot_token=platform_bot_token,
         callback_query=callback_query,
@@ -30,7 +31,7 @@ async def try_handle_admin_tenant_broadcast_confirm_callback(
     if not valid:
         return True
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "开始群发",
     })
