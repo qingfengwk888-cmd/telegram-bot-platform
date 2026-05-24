@@ -3,14 +3,14 @@ from typing import Optional
 from fastapi import APIRouter, Header, Request
 
 from app.core.logger import logger
-from app.telegram.api import tg
 from app.utils.helpers import json_response
 from app.services.bot_service import load_bot
-from app.services.rate_limit_service import is_duplicate_update, get_bot_user_rate_limit_status
+from app.services.rate_limit_service import is_duplicate_update
 from app.services.tenant_service import is_platform_tenant_blacklisted
 from app.services.message_parse_service import should_handle_as_admin_message
 from app.services.admin_message_service import handle_admin_message
 from app.services.user_message_service import handle_user_message
+from app.services.bot_webhook_callback_service import handle_bot_webhook_callback_query
 
 router = APIRouter()
 
@@ -47,32 +47,11 @@ async def bot_webhook(
             return {"ok": True, "botId": bot_id, "ignored": "duplicate_update"}
 
         if update.get("callback_query"):
-            callback_query = update["callback_query"]
-            from_user = callback_query.get("from") or {}
-            from_id = int(from_user.get("id") or 0)
-            callback_id = callback_query.get("id")
-            data = str(callback_query.get("data") or "").strip()
-
-            limit_result = await get_bot_user_rate_limit_status(
+            return await handle_bot_webhook_callback_query(
                 bot_id=bot_id,
-                user_id=from_id,
-                action=f"callback:{data}",
+                bot=bot,
+                callback_query=update["callback_query"],
             )
-
-            if limit_result["blocked"]:
-                if limit_result["message"]:
-                    await tg(bot["botToken"], "answerCallbackQuery", {
-                        "callback_query_id": callback_id,
-                        "text": limit_result["message"],
-                        "show_alert": True,
-                    })
-                return {"ok": True, "botId": bot_id, "role": "bot_callback_rate_limited"}
-
-            await tg(bot["botToken"], "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "已处理",
-            })
-            return {"ok": True, "botId": bot_id, "role": "bot_callback"}
 
         msg = update.get("message") or update.get("edited_message") or update.get("channel_post")
         if not msg:
