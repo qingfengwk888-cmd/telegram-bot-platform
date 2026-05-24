@@ -353,6 +353,7 @@ from app.services.bot_callback_unknown_action_service import answer_unknown_bot_
 from app.services.bot_remove_cancel_callback_service import try_handle_bot_remove_cancel_callback
 from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
 from app.services.bot_manage_back_to_list_callback_service import try_handle_bot_manage_back_to_list_callback
+from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
 
 # ============================================================
 # Helpers
@@ -2873,20 +2874,13 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    if data == "bot_blacklist_back":
-        tenant = await load_tenant_by_admin_chat_id(from_id)
-        bots = await list_bots_by_tenant_id(tenant["tenantId"]) if tenant else []
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "返回黑名单机器人列表",
-        })
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": callback_query["message"]["chat"]["id"],
-            "message_id": callback_query["message"]["message_id"],
-            "text": "请选择一个机器人查看黑名单：",
-            "reply_markup": build_bot_pick_buttons(bots, "blacklist"),
-        })
+    if await try_handle_bot_blacklist_back_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
         return
 
     m_blacklist_back = re.match(r"^bot_blacklist_back:(.+)$", data)
