@@ -343,6 +343,7 @@ from app.services.bot_modify_submit_callback_service import try_handle_bot_modif
 from app.services.bot_button_flow_callback_service import try_handle_bot_button_flow_callback
 
 from app.services.bot_manage_menu_callback_service import try_handle_bot_manage_menu_callback
+from app.services.tenant_select_buttons_callback_service import try_handle_tenant_select_buttons_callback
 
 # ============================================================
 # Helpers
@@ -2983,6 +2984,15 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         await clear_apply_session(from_id)
         session = None
 
+    if await try_handle_tenant_select_buttons_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    ):
+        return
+
     # 第二层：点击设置欢迎语 / 设置按钮
     m = re.match(r"^tenant_select:(welcome|buttons|blacklist|broadcast):(.+)$", data)
     if m:
@@ -3029,33 +3039,6 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         session["tenantId"] = tenant_id
         session["tenantName"] = tenant.get("tenantName") or tenant_id
         session["botUsername"] = bot_username
-        if action == "buttons":
-            await clear_apply_session(from_id)
-
-            bot = await pick_default_bot_for_tenant(tenant_id)
-            if not bot:
-                await tg(platform_bot_token, "answerCallbackQuery", {
-                    "callback_query_id": callback_id,
-                    "text": "该租户下暂无可操作机器人",
-                    "show_alert": True,
-                })
-                return
-
-            bot_id = str(bot.get("botId") or "").strip()
-            bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-            show_name = f"@{bot_username}" if bot_username else (bot.get("tenantName") or bot_id)
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "请选择按钮操作",
-            })
-            await tg(platform_bot_token, "editMessageText", {
-                "chat_id": callback_query["message"]["chat"]["id"],
-                "message_id": callback_query["message"]["message_id"],
-                "text": f"当前机器人：{show_name}",
-                "reply_markup": build_button_manage_menu_buttons(bot_id),
-            })
-            return
         if action == "blacklist":
             started = time.perf_counter()
 
