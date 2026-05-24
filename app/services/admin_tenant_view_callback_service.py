@@ -36,12 +36,21 @@ async def try_handle_admin_tenant_view_callback(
 
     users = await list_started_users_by_tenant_id_for_admin(tenant_id)
 
+    display_users = users[:35]
+    hidden_count = max(0, len(users) - len(display_users))
+    hidden_text = (
+        f"\n\n⚠️ 用户数量较多，当前仅展示前 {len(display_users)} 条，共 {len(users)} 条。"
+        if hidden_count
+        else ""
+    )
+
     await tg(platform_bot_token, "sendMessage", {
         "chat_id": from_id,
         "text": (
             (await format_tenant_summary_text(tenant))
             + "\n\n"
-            + format_started_users_text(tenant, users)
+            + format_started_users_text(tenant, display_users)
+            + hidden_text
             + "\n\n"
             + format_tenant_category_text(tenant)
         ),
