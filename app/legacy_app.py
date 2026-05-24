@@ -340,6 +340,8 @@ from app.services.tenant_broadcast_callback_service import try_handle_tenant_bro
 
 from app.services.bot_modify_submit_callback_service import try_handle_bot_modify_submit_callback
 
+from app.services.bot_button_flow_callback_service import try_handle_bot_button_flow_callback
+
 # ============================================================
 # Helpers
 # ============================================================
@@ -3322,75 +3324,14 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         })
         return
 
-    if data == "button_flow:add_more":
-        session["step"] = "button_text_input"
-        session["currentButtonText"] = ""
-        session["currentButtonReply"] = ""
-        await save_apply_session(from_id, session)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "继续添加",
-        })
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": "请发送下一个按钮名称。",
-        })
-        return
-
-    if data == "button_flow:finish":
-        bot_id = sanitize_tenant_id(session.get("botId") or "")
-        if not bot_id:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人无效",
-                "show_alert": True,
-            })
-            return
-
-        bot = bot or await load_bot(bot_id)
-        if not bot:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "机器人不存在",
-                "show_alert": True,
-            })
-            return
-
-        if int(bot.get("adminChatId", 0)) != int(from_id):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_id,
-                "text": "无权限修改该机器人",
-                "show_alert": True,
-            })
-            return
-
-        buttons = session.get("buttonDrafts") or []
-        bot["welcomeButtons"] = buttons if isinstance(buttons, list) else []
-        bot["updatedAt"] = now_ms()
-        await save_bot(bot)
-        await clear_apply_session(from_id)
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "按钮已保存",
-        })
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": "✅ 按钮已生效，请重新 /start 你的机器人即可。",
-        })
-        return
-
-    if data == "button_flow:cancel":
-        await clear_apply_session(from_id)
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "已取消",
-        })
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": "✅ 已取消当前按钮设置流程。",
-        })
+    if await try_handle_bot_button_flow_callback(
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+        session=session,
+        bot=bot,
+    ):
         return
 
     if await try_handle_bot_modify_submit_callback(
