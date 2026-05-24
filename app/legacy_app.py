@@ -197,30 +197,6 @@ from app.telegram.keyboards import (
 )
 from app.storage.redis_compat import redis_client
 
-from app.storage.repository import (
-    redis_get_json_db,
-    redis_set_json_db,
-    load_tenant_db,
-    save_tenant_db,
-    load_bot_db,
-    save_bot_db,
-    load_tenant_by_admin_chat_id_db,
-    get_tenant_index_db,
-    get_bot_index_db,
-    list_bot_ids_by_tenant_id_db,
-    list_bots_by_tenant_id_db,
-    list_started_users_by_tenant_id_db,
-    list_started_users_by_bot_id_db,
-    save_started_user_profile_db,
-    refresh_tenant_today_started_user_count_db,
-    get_latest_bot_id_by_tenant_id_db,
-    set_platform_tenant_blacklisted_db,
-    is_platform_tenant_blacklisted_db,
-    set_bot_user_blacklisted_db,
-    is_bot_user_blacklisted_db,
-    list_bot_blacklisted_users_db,
-)
-
 from datetime import datetime
 from collections import OrderedDict
 from contextlib import asynccontextmanager
