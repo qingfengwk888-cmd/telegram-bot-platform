@@ -204,6 +204,7 @@ from app.services.tenant_create_bot_token_message_service import try_handle_tena
 from app.services.platform_admin_tenant_broadcast_legacy_input_service import try_handle_platform_admin_tenant_broadcast_legacy_input
 from app.services.platform_ad_config_input_service import try_handle_platform_ad_config_input
 from app.services.platform_start_message_service import try_handle_platform_start_message
+from app.services.platform_cancel_message_service import try_handle_platform_cancel_message
 
 # ============================================================
 # Helpers
@@ -502,12 +503,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         })
         return
 
-    if text.startswith("/cancel"):
-        await clear_apply_session(chat_id)
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "✅ 已取消当前流程。",
-        })
+    if await try_handle_platform_cancel_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
     # =========================================================
