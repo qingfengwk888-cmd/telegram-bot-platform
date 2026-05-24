@@ -208,6 +208,7 @@ from app.services.platform_cancel_message_service import try_handle_platform_can
 from app.services.platform_secondary_admin_restricted_message_service import try_handle_platform_secondary_admin_restricted_message
 from app.services.platform_admin_interrupt_session_service import interrupt_platform_admin_input_session_if_needed
 from app.services.platform_tenant_message_guard_service import check_platform_tenant_message_guard
+from app.services.tenant_interrupt_session_service import interrupt_tenant_input_session_if_needed
 
 # ============================================================
 # Helpers
@@ -567,26 +568,12 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
 
 
     # 这些文本功能会“打断当前输入态”，直接切走
-    interrupt_text_actions = {
-        "📝 添加机器人",
-        "📁 我的机器人",
-        "🚫 查看黑名单",
-        "📣 群发消息",
-        "💬 帮助中心",
-        "🇨🇳 切换中文包",
-        "/apply",
-        "/my",
-        "/start",
-        "/cancel",
-    }
-
-    if text in interrupt_text_actions:
-        session = await interrupt_input_session_if_needed(
-            chat_id,
-            session,
-            platform_bot_token=platform_bot_token,
-            notify_chat_id=chat_id,
-        )
+    session = await interrupt_tenant_input_session_if_needed(
+        chat_id=chat_id,
+        text=text,
+        session=session,
+        platform_bot_token=platform_bot_token,
+    )
 
     if await try_handle_tenant_my_bots_message(
         platform_bot_token=platform_bot_token,
