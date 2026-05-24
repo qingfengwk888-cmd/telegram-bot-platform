@@ -1,13 +1,10 @@
-from app.services.bot_service import is_bot_user_blacklisted
 from app.services.user_service import find_bot_button_reply
 from app.services.user_start_message_service import try_handle_user_start_message
 from app.services.user_forward_message_service import forward_user_message_to_admin_and_ack
+from app.services.user_message_precheck_service import should_skip_user_message_before_dispatch
 from app.utils.helpers import build_user_link
 from app.services.lock_service import refresh_lock_if_current
-from app.services.message_classify_service import classify_message_action
 from app.services.message_parse_service import parse_start_payload
-from app.services.rate_limit_service import get_bot_user_rate_limit_status
-from app.services.reply_service import reply_rate_limited_for_message
 from app.telegram.api import tg
 
 
@@ -25,24 +22,13 @@ async def handle_user_message(msg: dict, bot: dict) -> None:
     text = (msg.get("text") or "").strip()
     start_payload = parse_start_payload(text)
 
-    if int(user_id) != int(admin_chat_id):
-        if await is_bot_user_blacklisted(bot["botId"], int(user_id)):
-            return
-
-    action_name = classify_message_action(text, bot)
-
-    limit_result = await get_bot_user_rate_limit_status(
-        bot_id=bot["botId"],
+    if await should_skip_user_message_before_dispatch(
+        msg=msg,
+        bot=bot,
         user_id=int(user_id),
-        action=action_name,
-    )
-    if limit_result["blocked"]:
-        if limit_result["message"]:
-            await reply_rate_limited_for_message(
-                bot,
-                int(msg["chat"]["id"]),
-                limit_result["message"],
-            )
+        admin_chat_id=admin_chat_id,
+        text=text,
+    ):
         return
 
     if await try_handle_user_start_message(
