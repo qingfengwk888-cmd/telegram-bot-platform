@@ -7,40 +7,43 @@ async def handle_platform_apply_approve_create_callback(
     apply: dict,
     message: dict,
 ) -> None:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import now_ms, escape_html
+    from app.services.apply_service import create_bot_from_apply, save_apply
+    from app.telegram.formatters import build_apply_summary
 
-    result = await legacy.create_bot_from_apply(request, apply)
+    result = await create_bot_from_apply(request, apply)
 
     apply["status"] = "approved"
-    apply["reviewedAt"] = legacy.now_ms()
+    apply["reviewedAt"] = now_ms()
     apply["reviewerChatId"] = from_id
     apply["reviewerAction"] = "approve"
     apply["approvedTenantId"] = result["tenant"]["tenantId"]
-    await legacy.save_apply(apply)
+    await save_apply(apply)
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "已同意并创建成功",
     })
 
     if message.get("chat", {}).get("id") and message.get("message_id"):
-        await legacy.tg(platform_bot_token, "editMessageReplyMarkup", {
+        await tg(platform_bot_token, "editMessageReplyMarkup", {
             "chat_id": message["chat"]["id"],
             "message_id": message["message_id"],
             "reply_markup": {"inline_keyboard": []},
         })
-        await legacy.tg(platform_bot_token, "editMessageText", {
+        await tg(platform_bot_token, "editMessageText", {
             "chat_id": message["chat"]["id"],
             "message_id": message["message_id"],
             "text": (
-                f"{legacy.build_apply_summary(apply)}\n\n"
+                f"{build_apply_summary(apply)}\n\n"
                 "✅ <b>已通过</b>\n"
-                f"🏢 tenantId：<code>{legacy.escape_html(result['tenant']['tenantId'])}</code>"
+                f"🏢 tenantId：<code>{escape_html(result['tenant']['tenantId'])}</code>"
             ),
             "parse_mode": "HTML",
         })
 
-    await legacy.tg(platform_bot_token, "sendMessage", {
+    await tg(platform_bot_token, "sendMessage", {
         "chat_id": apply["applicantChatId"],
         "text": (
             "✅ 你的机器人接入申请已通过审核。\n\n"
@@ -49,7 +52,7 @@ async def handle_platform_apply_approve_create_callback(
         ),
     })
 
-    await legacy.tg(apply["botToken"], "sendMessage", {
+    await tg(apply["botToken"], "sendMessage", {
         "chat_id": apply["applicantChatId"],
         "text": "✅ 接入成功",
     })
