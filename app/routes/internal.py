@@ -26,9 +26,9 @@ async def internal_setup_webhook(
     x_api_key: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
-    from app import legacy_app
+    from app.services.internal_webhook_service import internal_setup_webhook as handle_internal_setup_webhook
 
-    return await legacy_app.internal_setup_webhook(
+    return await handle_internal_setup_webhook(
         request=request,
         x_api_key=x_api_key,
         authorization=authorization,

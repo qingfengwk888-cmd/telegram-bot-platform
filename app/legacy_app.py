@@ -265,40 +265,6 @@ from app.services.platform_blacklist_command_service import try_handle_platform_
 
 
 
-# route moved to app.routes.internal
-async def internal_setup_webhook(
-    request: Request,
-    x_api_key: Optional[str] = Header(default=None),
-    authorization: Optional[str] = Header(default=None),
-):
-    if not require_internal_api_key(x_api_key, authorization):
-        return json_response({"ok": False, "error": "unauthorized"}, 401)
-
-    body = await request.json()
-    tenant_id = sanitize_tenant_id(body.get("tenantId") or "")
-    if not tenant_id:
-        return json_response({"ok": False, "error": "tenantId_required"}, 400)
-
-    tenant = await load_tenant(tenant_id)
-    if not tenant:
-        return json_response({"ok": False, "error": "tenant_not_found"}, 404)
-
-    hook_url = build_bot_webhook_url(get_request_origin(request), bot_id)
-    result = await telegram_raw(tenant["botToken"], "setWebhook", {
-        "url": hook_url,
-        "secret_token": tenant["webhookSecret"],
-    })
-
-    return {
-        "ok": True,
-        "tenantId": tenant_id,
-        "webhook": {
-            "url": hook_url,
-            "secretToken": tenant["webhookSecret"],
-        },
-        "telegram": result,
-    }
-
 
 # route moved to app.routes.internal
 async def internal_setup_platform_webhook(
