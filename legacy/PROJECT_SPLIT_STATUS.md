@@ -1,116 +1,48 @@
-# Telegram Bot Platform 拆分进度摘要
+# PROJECT_SPLIT_STATUS
 
-## 当前目标
-项目继续从 app/legacy_app.py 小步拆分到 app/services、app/core、app/telegram、app/routes 等模块。
-原则是：不重写项目、不改页面排版、不改通知文案、不改按钮文案，每一步拆完都要编译、启动测试、提交。
+## 当前状态
 
-## 当前注意事项
-- 不要改变平台机器人页面排版。
-- 不要改变数据概览、租户详情、用户列表、黑名单列表、通知文案排版。
-- 展示类函数只能原样搬运，不能重写。
-- internal_service 自动抽取失败过，暂时不要继续拆 internal_*。
-- platform_display_service 重写版曾改变排版，已经回滚，不要再用重写版。
-- try_handle_platform_blacklist_command 暂时不要拆，里面存在 callback_query["id"] 未定义风险点。
-- handle_platform_message、handle_platform_callback_query、handle_bot_callback_query 都是大函数，后续只能拆内部小分支，不要整函数搬。
-- 当前 apply/接入机器人逻辑符合预期：提交机器人后自动接入，管理员只收到启动/接入通知，不需要逐个点同意。
+telegram-bot-platform 已完成旧单文件 legacy_app 拆分。
 
-## 已拆分模块
-- app/storage/database.py
-- app/storage/models.py
-- app/storage/repository.py
-- app/storage/redis_compat.py
-- app/telegram/api.py
-- app/telegram/keyboards.py
-- app/telegram/formatters.py
-- app/routes/health.py
-- app/routes/platform.py
-- app/routes/webhook.py
-- app/routes/internal.py
-- app/core/lifespan.py
-- app/core/keys.py
-- app/core/request_helpers.py
-- app/services/tenant_service.py
-- app/services/bot_service.py
-- app/services/rate_limit_service.py
-- app/services/ad_service.py
-- app/services/notice_service.py
-- app/services/blacklist_service.py
-- app/services/user_service.py
-- app/services/lock_service.py
-- app/services/stat_service.py
-- app/services/reply_service.py
-- app/services/message_classify_service.py
-- app/services/platform_ad_service.py
-- app/services/tenant_query_service.py
-- app/services/input_session_service.py
-- app/services/message_parse_service.py
-- app/services/platform_notice_view_service.py
-- app/services/bot_onboarding_service.py
-- app/services/platform_dashboard_view_service.py
-- app/services/bot_user_blacklist_command_service.py
-- app/services/admin_message_service.py
-- app/services/user_message_service.py
+## 入口
 
-## 最近完成
-- move platform dashboard view helpers to service
-- move bot onboarding helpers to service
-- move bot user blacklist command handler to service
-- move admin message handler to service
-- move user message handler to service
+- 当前运行入口：`app/main.py`
+- FastAPI app 创建与路由挂载已迁入 `app/main.py`
+- `app/legacy_app.py` 已删除
 
-## 当前剩余 top-level functions
-当前剩余约 13 个，以下以 scripts/report_legacy_functions.py 输出为准：
+## legacy_app 状态
 
-- try_handle_platform_blacklist_command
-- handle_platform_message
-- handle_platform_callback_query
-- handle_bot_callback_query
-- internal_create_bot
-- internal_get_tenant
-- internal_list_tenants
-- internal_list_applies
-- internal_disable_tenant
-- internal_enable_tenant
-- internal_delete_tenant
-- internal_setup_webhook
-- internal_setup_platform_webhook
+- 剩余顶层函数：0
+- active app/scripts 源码中无 `legacy_app` 依赖
+- 旧拆分脚本已归档到 `legacy/scripts/steps/`
+- 原始历史文件与备份保留在 `legacy/`
 
-## 下一步建议
-先不要继续拆 internal_*。
-先不要拆 try_handle_platform_blacklist_command。
-下一步如果继续拆，优先从 handle_bot_callback_query 或 handle_platform_callback_query 里拆很小的内部功能分支，拆前必须先看完整依赖。
+## 当前 scripts 目录
 
-## 下个对话开始时建议执行
-cd /workspaces/telegram-bot-platform
-git status
-git log --oneline -20
-python -m py_compile app/main.py app/legacy_app.py app/routes/*.py app/services/*.py app/telegram/*.py app/core/*.py app/storage/*.py
-timeout 8s python -m app.main
-echo "exit_code=$?"
-python scripts/report_legacy_functions.py | head -100
+保留运行/维护脚本：
 
-## Latest progress
+- `scripts/init_db.py`
+- `scripts/migrate_redis_to_db.py`
+- `scripts/report_legacy_functions.py`
 
-- `handle_platform_message` has been moved out of `legacy_app.py`.
-- `handle_platform_callback_query` has been moved out of `legacy_app.py`.
-- `handle_bot_callback_query` has been moved out of `legacy_app.py`.
-- `try_handle_platform_blacklist_command` has been moved to service.
-- `legacy_app.py` now only keeps internal API compatibility handlers.
-- Per current rule, `internal_*` is not being split in this stage.
+## 验证命令
 
-## 2026-05-24 更新
+    python -m py_compile \
+      app/main.py app/routes/*.py app/services/*.py app/telegram/*.py app/core/*.py app/storage/*.py scripts/*.py
 
-本轮已完成 service 层 legacy_app 依赖清理。
+    timeout 8s python -m app.main
+    echo "exit_code=$?"
 
-已清理：
-- active app/scripts 源码中已无 legacy_app 依赖
-- app/telegram/formatters.py 对 legacy_app 的依赖
-- blacklist_service.py 中租户维度黑名单兼容逻辑已迁为基于 tenant 下 bot 汇总判断
+    python scripts/report_legacy_functions.py
 
-当前剩余：
-- app/routes/internal.py 仍调用 legacy_app.internal_*，按计划暂不拆
-- legacy_app.py 顶层仅保留 internal_* 相关函数
+    grep -R "from app.legacy_app\|import app.legacy_app\|import legacy_app\|from app import legacy_app" -n app scripts \
+      --exclude-dir=__pycache__ \
+      --exclude="*.pyc" || true
 
-下一步：
-- 如继续拆分，可开始迁移 internal_* 到独立 internal service
-- 拆 internal_* 前需要先分析 create/setup webhook 相关依赖，避免影响内部 API
+## 最终确认标准
+
+- `exit_code=0`
+- `legacy_app.py remaining top-level functions: 0`
+- `app/legacy_app.py not found`
+- active `app/` 与 `scripts/` 中无 legacy_app import
+- `git status` clean
