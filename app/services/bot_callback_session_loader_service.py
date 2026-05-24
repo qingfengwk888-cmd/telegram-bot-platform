@@ -3,12 +3,13 @@ async def load_bot_callback_session(
     from_id: int,
     data: str,
 ):
-    from app import legacy_app as legacy
+    from app.services.apply_service import load_apply_session, clear_apply_session
+    from app.services.input_session_service import is_busy_input_session
 
-    session = await legacy.load_apply_session(from_id)
+    session = await load_apply_session(from_id)
 
     if (
-        legacy.is_busy_input_session(session)
+        is_busy_input_session(session)
         and data not in {
             "admin_tenant_broadcast_confirm",
             "admin_tenant_broadcast_cancel",
@@ -27,7 +28,7 @@ async def load_bot_callback_session(
             or data.startswith("admin_tenant:view:")
         )
     ):
-        await legacy.clear_apply_session(from_id)
+        await clear_apply_session(from_id)
         session = None
 
     return session
