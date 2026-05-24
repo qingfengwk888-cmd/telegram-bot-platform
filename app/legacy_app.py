@@ -62,48 +62,22 @@ from app.telegram.api import (
 )
 from app.telegram.formatters import (
     format_button_preview,
-    format_all_tenants_text,
     format_tenant_summary_text,
     format_started_users_text,
     format_tenant_category_text,
-    build_apply_summary,
-    build_creator_signature,
-    build_final_welcome_text,
 )
 from app.telegram.keyboards import (
     build_bot_pick_buttons,
-    build_my_bots_action_buttons,
     build_button_flow_action_buttons,
     build_global_broadcast_confirm_buttons,
     build_global_broadcast_target_buttons,
     build_modify_confirm_buttons,
     build_my_bots_entry_buttons,
-    build_single_bot_action_buttons,
-    build_button_manage_menu_buttons,
-    build_button_delete_pick_buttons,
-    build_button_reply_map,
-    build_profile_buttons,
-    flatten_welcome_buttons,
-    rebuild_button_rows,
-    build_remove_confirm_buttons,
     build_platform_reply_keyboard_for_admin,
-    build_bot_reply_keyboard,
     build_platform_ad_menu_buttons,
-    build_platform_ad_pick_buttons,
     build_platform_reply_keyboard_for_tenant,
-    build_admin_tenant_pick_buttons,
     build_admin_tenant_root_menu_buttons,
-    build_admin_tenant_traffic_sort_buttons,
-    build_admin_tenant_category_buttons,
-    build_admin_tenant_pick_buttons_with_back,
-    build_tenant_category_buttons,
-    build_tenant_detail_category_buttons,
-    build_tenant_detail_action_buttons,
-    build_new_tenant_notice_buttons,
-    build_apply_approve_buttons,
-    build_welcome_buttons,
 )
-from app.storage.redis_compat import redis_client
 
 from fastapi import FastAPI, Header, Request
 
