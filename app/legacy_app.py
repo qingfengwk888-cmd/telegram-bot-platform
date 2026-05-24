@@ -367,6 +367,7 @@ from app.services.admin_tenant_broadcast_confirm_validation_service import valid
 from app.services.admin_tenant_broadcast_execute_service import execute_admin_tenant_broadcast
 from app.services.admin_tenant_broadcast_finish_service import finish_admin_tenant_broadcast_confirm
 from app.services.platform_global_broadcast_confirm_callback_service import try_handle_platform_global_broadcast_confirm_callback
+from app.services.admin_tenant_broadcast_confirm_callback_service import try_handle_admin_tenant_broadcast_confirm_callback
 from app.services.platform_global_broadcast_target_cancel_callback_service import try_handle_platform_global_broadcast_target_cancel_callback
 from app.services.platform_global_broadcast_target_select_callback_service import try_handle_platform_global_broadcast_target_select_callback
 from app.services.platform_noop_callback_service import try_handle_platform_noop_callback
@@ -1832,39 +1833,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    if data == "admin_tenant_broadcast_confirm":
-        session = await load_apply_session(from_id)
-        valid, tenant_id, broadcast_text, tenant, sender_bot, users = await validate_admin_tenant_broadcast_confirm_session(
-            platform_bot_token=platform_bot_token,
-            callback_query=callback_query,
-            from_id=from_id,
-            session=session,
-        )
-        if not valid:
-            return
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "开始群发",
-        })
-
-        success, failed = await execute_admin_tenant_broadcast(
-            sender_bot=sender_bot,
-            users=users,
-            broadcast_text=broadcast_text,
-        )
-
-        await finish_admin_tenant_broadcast_confirm(
-            platform_bot_token=platform_bot_token,
-            from_id=from_id,
-            message=message,
-            tenant_id=tenant_id,
-            tenant=tenant,
-            sender_bot=sender_bot,
-            users=users,
-            success=success,
-            failed=failed,
-        )
+    if await try_handle_admin_tenant_broadcast_confirm_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        message=message,
+    ):
         return
 
     if await try_handle_platform_global_broadcast_target_cancel_callback(
