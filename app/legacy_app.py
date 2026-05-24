@@ -349,6 +349,7 @@ from app.services.tenant_select_welcome_callback_service import try_handle_tenan
 from app.services.tenant_select_broadcast_callback_service import try_handle_tenant_select_broadcast_callback
 from app.services.tenant_remove_confirm_callback_service import try_handle_tenant_remove_confirm_callback
 from app.services.bot_callback_session_required_service import try_handle_missing_bot_callback_session
+from app.services.bot_callback_unknown_action_service import answer_unknown_bot_callback_action
 
 # ============================================================
 # Helpers
@@ -3109,11 +3110,10 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    await tg(platform_bot_token, "answerCallbackQuery", {
-        "callback_query_id": callback_id,
-        "text": "未知操作",
-        "show_alert": True,
-    })
+    await answer_unknown_bot_callback_action(
+        platform_bot_token=platform_bot_token,
+        callback_id=callback_id,
+    )
 
 
 
