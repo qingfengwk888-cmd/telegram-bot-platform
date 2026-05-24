@@ -189,6 +189,7 @@ from app.services.platform_tenant_list_menu_message_service import try_handle_pl
 from app.services.platform_global_broadcast_menu_message_service import try_handle_platform_global_broadcast_menu_message
 from app.services.platform_users_command_service import try_handle_platform_users_command
 from app.services.platform_broadcast_all_command_service import try_handle_platform_broadcast_all_command
+from app.services.platform_broadcast_command_service import try_handle_platform_broadcast_command
 
 # ============================================================
 # Helpers
@@ -675,71 +676,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         ):
             return
 
-        if text.startswith("/broadcast"):
-            parts = text.split(maxsplit=2)
-            if len(parts) < 3:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "用法：/broadcast tenantId 群发内容",
-                })
-                return
-
-            tenant_id = sanitize_tenant_id(parts[1])
-            broadcast_text = parts[2].strip()
-
-            if not tenant_id or not broadcast_text:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "参数不完整。用法：/broadcast tenantId 群发内容",
-                })
-                return
-
-            tenant = await load_tenant(tenant_id)
-            if not tenant:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "租户不存在。",
-                })
-                return
-
-            if await is_platform_tenant_blacklisted(tenant_id):
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户已被拉黑，禁止操作。",
-                })
-                return
-
-            users = await list_started_users_by_tenant_id(tenant_id)
-            if not users:
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "该租户暂无启动用户，无法群发。",
-                })
-                return
-
-            success = 0
-            failed = 0
-
-            for u in users:
-                try:
-                    await tg(tenant["botToken"], "sendMessage", {
-                        "chat_id": int(u["userId"]),
-                        "text": broadcast_text,
-                    })
-                    success += 1
-                except Exception:
-                    failed += 1
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    "📣 单租户群发完成\n"
-                    f"租户：{tenant_id}\n"
-                    f"目标人数：{len(users)}\n"
-                    f"成功：{success}\n"
-                    f"失败：{failed}"
-                ),
-            })
+        if await try_handle_platform_broadcast_command(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         await tg(platform_bot_token, "sendMessage", {
