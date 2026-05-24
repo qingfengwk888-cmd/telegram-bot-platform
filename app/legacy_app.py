@@ -379,6 +379,7 @@ from app.services.admin_tenant_back_callback_service import try_handle_admin_ten
 from app.services.admin_tenant_sort_callback_service import try_handle_admin_tenant_sort_callback
 from app.services.admin_tenant_filter_callback_service import try_handle_admin_tenant_filter_callback
 from app.services.admin_tenant_view_callback_service import try_handle_admin_tenant_view_callback
+from app.services.platform_apply_review_validation_service import load_and_validate_platform_apply_review
 
 # ============================================================
 # Helpers
@@ -2002,22 +2003,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
 
     action = match.group(1)
     apply_id = match.group(2)
-    apply = await load_apply(apply_id)
-
-    if not apply:
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "申请不存在或已过期",
-            "show_alert": True,
-        })
-        return
-
-    if apply.get("status") != "pending":
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": f"该申请已处理：{apply.get('status')}",
-            "show_alert": True,
-        })
+    valid, apply = await load_and_validate_platform_apply_review(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        apply_id=apply_id,
+    )
+    if not valid:
         return
 
     if action == "reject":
