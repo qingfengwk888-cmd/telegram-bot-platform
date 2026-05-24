@@ -355,6 +355,7 @@ from app.services.bot_noop_callback_service import try_handle_bot_noop_callback
 from app.services.bot_manage_back_to_list_callback_service import try_handle_bot_manage_back_to_list_callback
 from app.services.bot_blacklist_back_callback_service import try_handle_bot_blacklist_back_callback
 from app.services.bot_blacklist_detail_back_callback_service import try_handle_bot_blacklist_detail_back_callback
+from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
 
 # ============================================================
 # Helpers
@@ -2892,24 +2893,14 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
     ):
         return
 
-    bot = None
-    bot_id = await extract_bot_id_from_callback_data(data)
-    if bot_id:
-        bot = await load_bot(bot_id)
-        if bot:
-            limit_result = await get_bot_user_rate_limit_status(
-                bot_id=bot_id,
-                user_id=from_id,
-                action=f"callback:{data}",
-            )
-            if limit_result["blocked"]:
-                if limit_result["message"]:
-                    await tg(platform_bot_token, "answerCallbackQuery", {
-                        "callback_query_id": callback_id,
-                        "text": limit_result["message"],
-                        "show_alert": True,
-                    })
-                return
+    handled, bot_id, bot = await resolve_bot_for_callback_and_check_rate_limit(
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+        callback_id=callback_id,
+    )
+    if handled:
+        return
 
     if await try_handle_bot_button_callback(
         callback_query=callback_query,
