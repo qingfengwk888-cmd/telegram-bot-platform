@@ -1,11 +1,15 @@
-legacy_app.py remaining top-level functions: 9
---------------------------------------------------------------------------------
-internal_create_bot
-internal_get_tenant
-internal_list_tenants
-internal_list_applies
-internal_disable_tenant
-internal_enable_tenant
-internal_delete_tenant
-internal_setup_webhook
-internal_setup_platform_webhook
+legacy_app.py remaining top-level functions:
+
+暂不拆 internal_*：
+- internal_create_bot
+- internal_get_tenant
+- internal_list_tenants
+- internal_list_applies
+- internal_disable_tenant
+- internal_enable_tenant
+- internal_delete_tenant
+- internal_setup_webhook
+- internal_setup_platform_webhook
+
+当前 app 内 legacy_app 依赖：
+- app/routes/internal.py 仍调用 legacy_app.internal_*，按计划暂时保留

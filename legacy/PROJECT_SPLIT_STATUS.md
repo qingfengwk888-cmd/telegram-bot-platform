@@ -97,3 +97,20 @@ python scripts/report_legacy_functions.py | head -100
 - `try_handle_platform_blacklist_command` has been moved to service.
 - `legacy_app.py` now only keeps internal API compatibility handlers.
 - Per current rule, `internal_*` is not being split in this stage.
+
+## 2026-05-24 更新
+
+本轮已完成 service 层 legacy_app 依赖清理。
+
+已清理：
+- app/services 内部的 `from app import legacy_app as legacy`
+- app/telegram/formatters.py 对 legacy_app 的依赖
+- blacklist_service.py 中租户维度黑名单兼容逻辑已迁为基于 tenant 下 bot 汇总判断
+
+当前剩余：
+- app/routes/internal.py 仍调用 legacy_app.internal_*，按计划暂不拆
+- legacy_app.py 顶层仅保留 internal_* 相关函数
+
+下一步：
+- 如继续拆分，可开始迁移 internal_* 到独立 internal service
+- 拆 internal_* 前需要先分析 create/setup webhook 相关依赖，避免影响内部 API
