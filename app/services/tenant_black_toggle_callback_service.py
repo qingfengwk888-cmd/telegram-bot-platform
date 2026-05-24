@@ -1,4 +1,8 @@
+import logging
 import re
+
+
+logger = logging.getLogger(__name__)
 
 
 async def try_handle_tenant_black_toggle_callback(
@@ -9,18 +13,31 @@ async def try_handle_tenant_black_toggle_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.utils.helpers import sanitize_tenant_id, now_ms
+    from app.services.tenant_service import (
+        load_tenant,
+        save_tenant,
+        set_platform_tenant_blacklisted,
+        list_started_users_by_tenant_id,
+    )
+    from app.telegram.formatters import (
+        format_tenant_summary_text,
+        format_started_users_text,
+        format_tenant_category_text,
+    )
+    from app.telegram.keyboards import build_tenant_detail_action_buttons
 
     black_match = re.match(r"^tenant_black_toggle:(black|unblack):(.+)$", data)
     if not black_match:
         return False
 
     action = black_match.group(1)
-    tenant_id = legacy.sanitize_tenant_id(black_match.group(2))
+    tenant_id = sanitize_tenant_id(black_match.group(2))
 
-    tenant = await legacy.load_tenant(tenant_id)
+    tenant = await load_tenant(tenant_id)
     if not tenant:
-        await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_query["id"],
             "text": "租户不存在或已删除",
             "show_alert": True,
@@ -30,18 +47,18 @@ async def try_handle_tenant_black_toggle_callback(
     should_black = action == "black"
 
     # 1. 同步 Redis 黑名单
-    await legacy.set_platform_tenant_blacklisted(tenant_id, should_black)
+    await set_platform_tenant_blacklisted(tenant_id, should_black)
 
     # 2. 同步 tenant 展示字段
     tenant["isBlacklisted"] = should_black
-    tenant["updatedAt"] = legacy.now_ms()
-    await legacy.save_tenant(tenant)
+    tenant["updatedAt"] = now_ms()
+    await save_tenant(tenant)
 
     # 3. 通知租户管理员
     tenant_admin_chat_id = int(tenant.get("adminChatId") or 0)
     if tenant_admin_chat_id:
         try:
-            await legacy.tg(platform_bot_token, "sendMessage", {
+            await tg(platform_bot_token, "sendMessage", {
                 "chat_id": tenant_admin_chat_id,
                 "text": (
                     "⛔ 你已被暂停使用。"
@@ -50,12 +67,12 @@ async def try_handle_tenant_black_toggle_callback(
                 ),
             })
         except Exception:
-            legacy.logger.exception(
+            logger.exception(
                 "notify tenant blacklist state failed tenantId=%s",
                 tenant_id,
             )
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": "已拉黑该租户" if should_black else "已解除拉黑",
     })
@@ -72,7 +89,7 @@ async def try_handle_tenant_black_toggle_callback(
         ):
             category = str(tenant.get("category") or "other")
 
-            await legacy.tg(platform_bot_token, "editMessageReplyMarkup", {
+            await tg(platform_bot_token, "editMessageReplyMarkup", {
                 "chat_id": message["chat"]["id"],
                 "message_id": message["message_id"],
                 "reply_markup": {
@@ -106,21 +123,21 @@ async def try_handle_tenant_black_toggle_callback(
             })
             return True
 
-        users = await legacy.list_started_users_by_tenant_id(tenant_id)
+        users = await list_started_users_by_tenant_id(tenant_id)
 
-        await legacy.tg(platform_bot_token, "editMessageText", {
+        await tg(platform_bot_token, "editMessageText", {
             "chat_id": message["chat"]["id"],
             "message_id": message["message_id"],
             "text": (
-                await legacy.format_tenant_summary_text(tenant)
+                await format_tenant_summary_text(tenant)
                 + "\n\n"
-                + legacy.format_started_users_text(tenant, users)
+                + format_started_users_text(tenant, users)
                 + "\n\n"
-                + legacy.format_tenant_category_text(tenant)
+                + format_tenant_category_text(tenant)
             ),
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
-            "reply_markup": legacy.build_tenant_detail_action_buttons(tenant_id, from_id),
+            "reply_markup": build_tenant_detail_action_buttons(tenant_id, from_id),
         })
 
     return True
