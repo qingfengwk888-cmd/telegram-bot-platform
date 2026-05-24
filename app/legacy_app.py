@@ -11,6 +11,16 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.blacklist_service import (
+    bot_user_black_key,
+    bot_user_blacklist_set_key,
+    platform_tenant_black_key,
+    is_tenant_user_blacklisted,
+    list_blacklisted_users_by_tenant_id,
+    list_blacklisted_users,
+    format_blacklisted_users_text,
+    format_tenant_blacklisted_users_text,
+)
 from app.services.notice_service import (
     platform_tenant_notice_map_key,
     map_platform_notice_message,
@@ -890,14 +900,6 @@ def bot_started_users_key(bot_id: str) -> str:
 def bot_user_profile_key(bot_id: str, user_id: int) -> str:
     return f"b:{bot_id}:profile:{int(user_id)}"
 
-def bot_user_black_key(bot_id: str, user_id: int) -> str:
-    return f"b:{bot_id}:black:user:{int(user_id)}"
-
-def bot_user_blacklist_set_key(bot_id: str) -> str:
-    return f"b:{bot_id}:black:users"
-
-
-
 
 
 def bot_start_alert_window_key(bot_id: str) -> str:
@@ -1026,135 +1028,6 @@ def tenant_data_key(tenant_id: str, *parts: Any) -> str:
 
 
 
-def platform_tenant_black_key(tenant_id: str) -> str:
-    return f"platform:black:tenant:{sanitize_tenant_id(tenant_id)}"
-
-
-
-
-async def is_tenant_user_blacklisted(tenant_id: str, user_id: int) -> bool:
-    tenant_id = str(tenant_id or "").strip()
-    user_id = int(user_id or 0)
-
-    if not tenant_id or not user_id:
-        return False
-
-    bots = await list_bots_by_tenant_id(tenant_id)
-    for bot in bots:
-        bot_id = str(bot.get("botId") or "").strip()
-        if not bot_id:
-            continue
-
-        if await is_bot_user_blacklisted(bot_id, user_id):
-            return True
-
-    return False
-
-async def list_blacklisted_users_by_tenant_id(tenant_id: str) -> List[dict]:
-    bots = await list_bots_by_tenant_id(tenant_id)
-    results: List[dict] = []
-    seen_user_ids = set()
-
-    for bot in bots:
-        bot_id = str(bot.get("botId") or "").strip()
-        bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-
-        if not bot_id:
-            continue
-
-        users = await list_blacklisted_users(bot_id)
-        for u in users:
-            user_id = int(u.get("userId") or 0)
-            if not user_id or user_id in seen_user_ids:
-                continue
-
-            seen_user_ids.add(user_id)
-            results.append({
-                **u,
-                "botId": bot_id,
-                "botUsername": str(u.get("botUsername") or bot_username).strip(),
-                "tenantId": tenant_id,
-            })
-
-    return results
-
-
-
-
-async def list_blacklisted_users(bot_id: str) -> List[dict]:
-    return await list_bot_blacklisted_users_db(bot_id)
-
-
-def format_blacklisted_users_text(bot: dict, users: List[dict]) -> str:
-    bot_username = str(((bot.get("botInfo") or {}).get("username") or "")).strip()
-    bot_show = f"@{bot_username}" if bot_username else (bot.get("botId") or "")
-    tenant_name = str(bot.get("tenantName") or bot.get("tenantId") or "").strip()
-
-    lines = [
-        f"🚫 机器人 <b>{escape_html(bot_show)}</b> 黑名单",
-        f"🏢 所属租户：<b>{escape_html(tenant_name)}</b>",
-        f"总数：<b>{len(users)}</b>",
-        ""
-    ]
-
-    for idx, u in enumerate(users[:100], start=1):
-        username = str(u.get("username") or "").strip()
-        first_name = str(u.get("firstName") or "").strip()
-        last_name = str(u.get("lastName") or "").strip()
-        user_id = int(u.get("userId"))
-
-        display_name = (
-            f"@{username}"
-            if username else
-            (" ".join([x for x in [first_name, last_name] if x]).strip() or f"UID:{user_id}")
-        )
-
-        lines.append(f"{idx}. {escape_html(display_name)} | UID:<code>{user_id}</code>")
-
-    if len(users) > 100:
-        lines.append("")
-        lines.append(f"仅显示前 100 个，共 {len(users)} 个")
-
-    if not users:
-        lines.append("当前黑名单为空。")
-
-    return "\n".join(lines)
-
-def format_tenant_blacklisted_users_text(tenant: dict, users: List[dict]) -> str:
-    tenant_name = str(tenant.get("tenantName") or tenant.get("tenantId") or "").strip()
-
-    lines = [
-        f"🚫 租户 <b>{escape_html(tenant_name)}</b> 黑名单汇总",
-        f"总数：<b>{len(users)}</b>",
-        ""
-    ]
-
-    for idx, u in enumerate(users[:100], start=1):
-        username = str(u.get("username") or "").strip()
-        first_name = str(u.get("firstName") or "").strip()
-        last_name = str(u.get("lastName") or "").strip()
-        user_id = int(u.get("userId") or 0)
-        bot_username = str(u.get("botUsername") or "").strip()
-        bot_show = f"@{bot_username}" if bot_username else "unknown_bot"
-
-        display_name = (
-            f"@{username}"
-            if username else
-            (" ".join([x for x in [first_name, last_name] if x]).strip() or f"UID:{user_id}")
-        )
-
-        lines.append(
-            f"{idx}. {escape_html(display_name)} | UID:<code>{user_id}</code> | 机器人:<code>{escape_html(bot_show)}</code>"
-        )
-
-    if len(users) > 100:
-        lines.append("")
-        lines.append(f"仅显示前 100 个，共 {len(users)} 个")
-
-    if not users:
-        lines.append("当前黑名单为空。")
-
-    return "\n".join(lines)
 
 
 
