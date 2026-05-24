@@ -1,6 +1,8 @@
 from typing import List
 
 from app.core.logger import logger
+from app.core.request_helpers import get_platform_bot_token
+from app.core.keys import tenant_data_key
 
 import re
 
@@ -127,17 +129,3 @@ def format_tenant_blacklisted_users_text(tenant: dict, users: List[dict]) -> str
     return "\n".join(lines)
 
 
-def _legacy():
-    from app import legacy_app
-    return legacy_app
-
-
-
-
-
-def get_platform_bot_token() -> str:
-    return _legacy().get_platform_bot_token()
-
-
-def tenant_data_key(tenant_id: str, *parts) -> str:
-    return _legacy().tenant_data_key(tenant_id, *parts)
