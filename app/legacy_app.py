@@ -1,8 +1,5 @@
 import os
-import re
-import html
 import logging
-import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, Header, Request
@@ -12,45 +9,20 @@ from app.utils.helpers import (
     sanitize_tenant_id,
     is_primary_platform_admin,
     is_secondary_platform_admin,
-    build_bot_id_from_bot_username,
-    build_tenant_id_from_admin_chat_id,
-    escape_html,
 )
 from app.core.lifespan import lifespan
-from app.services.blacklist_service import (
-    list_blacklisted_users,
-    format_blacklisted_users_text,
-)
 from app.services.notice_service import (
     get_platform_notice_target,
 )
 from app.services.apply_service import (
     load_apply,
     get_apply_index,
-    load_apply_session,
-    save_apply_session,
-    clear_apply_session,
-)
-from app.services.ad_service import (
-    generate_ad_id,
-)
-from app.services.rate_limit_service import (
-    get_bot_user_rate_limit_status,
-)
-from app.services.bot_service import (
-    list_started_users,
-    load_bot,
-    pick_sender_bot_for_tenant,
 )
 from app.services.tenant_service import (
     load_tenant,
     save_tenant,
-    load_tenant_by_admin_chat_id,
     get_tenant_index,
-    list_bots_by_tenant_id,
-    list_started_users_by_tenant_id,
     set_platform_tenant_blacklisted,
-    is_platform_tenant_blacklisted,
 )
 from app.routes.health import router as health_router
 from app.routes.platform import router as platform_router
@@ -59,24 +31,6 @@ from app.routes.internal import router as internal_router
 from app.telegram.api import (
     tg,
     telegram_raw,
-)
-from app.telegram.formatters import (
-    format_button_preview,
-    format_tenant_summary_text,
-    format_started_users_text,
-    format_tenant_category_text,
-)
-from app.telegram.keyboards import (
-    build_bot_pick_buttons,
-    build_button_flow_action_buttons,
-    build_global_broadcast_confirm_buttons,
-    build_global_broadcast_target_buttons,
-    build_modify_confirm_buttons,
-    build_my_bots_entry_buttons,
-    build_platform_reply_keyboard_for_admin,
-    build_platform_ad_menu_buttons,
-    build_platform_reply_keyboard_for_tenant,
-    build_admin_tenant_root_menu_buttons,
 )
 
 # ============================================================
@@ -154,7 +108,6 @@ app.include_router(internal_router)
 
 from app.core.request_helpers import (
     build_bot_webhook_url,
-    get_platform_admin_chat_id,
     get_platform_bot_token,
     get_request_origin,
     require_internal_api_key,
@@ -166,7 +119,6 @@ from app.core.request_helpers import (
 
 
 
-from app.services.bot_onboarding_service import (create_bot_from_payload, get_or_create_tenant_by_admin)
 
 
 
@@ -182,34 +134,6 @@ from app.services.bot_callback_context_service import build_bot_callback_context
 from app.services.bot_callback_dispatch_service import dispatch_bot_callback
 from app.services.platform_callback_dispatch_service import dispatch_platform_callback
 from app.services.platform_message_dispatch_service import dispatch_platform_message
-from app.services.platform_admin_tenant_broadcast_input_service import try_handle_platform_admin_tenant_broadcast_input
-from app.services.platform_global_broadcast_input_service import try_handle_platform_global_broadcast_input
-from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
-from app.services.platform_dashboard_message_service import try_handle_platform_dashboard_message
-from app.services.platform_tenant_list_menu_message_service import try_handle_platform_tenant_list_menu_message
-from app.services.platform_global_broadcast_menu_message_service import try_handle_platform_global_broadcast_menu_message
-from app.services.platform_users_command_service import try_handle_platform_users_command
-from app.services.platform_broadcast_all_command_service import try_handle_platform_broadcast_all_command
-from app.services.platform_broadcast_command_service import try_handle_platform_broadcast_command
-from app.services.platform_admin_help_message_service import try_handle_platform_admin_help_message
-from app.services.tenant_my_bots_message_service import try_handle_tenant_my_bots_message
-from app.services.tenant_apply_start_message_service import try_handle_tenant_apply_start_message
-from app.services.tenant_blacklist_view_message_service import try_handle_tenant_blacklist_view_message
-from app.services.tenant_broadcast_start_message_service import try_handle_tenant_broadcast_start_message
-from app.services.tenant_help_message_service import try_handle_tenant_help_message
-from app.services.tenant_language_pack_message_service import try_handle_tenant_language_pack_message
-from app.services.tenant_modify_deprecated_message_service import try_handle_tenant_modify_deprecated_message
-from app.services.tenant_broadcast_input_message_service import try_handle_tenant_broadcast_input_message
-from app.services.tenant_modify_input_message_service import try_handle_tenant_modify_input_message
-from app.services.tenant_create_bot_token_message_service import try_handle_tenant_create_bot_token_message
-from app.services.platform_admin_tenant_broadcast_legacy_input_service import try_handle_platform_admin_tenant_broadcast_legacy_input
-from app.services.platform_ad_config_input_service import try_handle_platform_ad_config_input
-from app.services.platform_start_message_service import try_handle_platform_start_message
-from app.services.platform_cancel_message_service import try_handle_platform_cancel_message
-from app.services.platform_secondary_admin_restricted_message_service import try_handle_platform_secondary_admin_restricted_message
-from app.services.platform_admin_interrupt_session_service import interrupt_platform_admin_input_session_if_needed
-from app.services.platform_tenant_message_guard_service import check_platform_tenant_message_guard
-from app.services.tenant_interrupt_session_service import interrupt_tenant_input_session_if_needed
 
 # ============================================================
 # Helpers
