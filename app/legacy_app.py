@@ -358,6 +358,7 @@ from app.services.bot_blacklist_detail_back_callback_service import try_handle_b
 from app.services.bot_callback_rate_limit_service import resolve_bot_for_callback_and_check_rate_limit
 from app.services.admin_tenant_broadcast_cancel_callback_service import try_handle_admin_tenant_broadcast_cancel_callback
 from app.services.platform_global_broadcast_cancel_callback_service import try_handle_platform_global_broadcast_cancel_callback
+from app.services.platform_secondary_admin_guard_service import try_block_secondary_admin_platform_callback
 
 # ============================================================
 # Helpers
@@ -1741,22 +1742,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     message = callback_query.get("message") or {}
 
     # 二级管理员只拦指定平台功能
-    if is_secondary_platform_admin(from_id):
-        if (
-            data.startswith("platform_ad_menu:")
-            or data.startswith("platform_ad_pick:")
-            or data.startswith("platform_global_broadcast")
-            or data.startswith("platform_global_broadcast_target:")
-            or data.startswith("admin_tenant_broadcast:")
-            or data == "admin_tenant_broadcast_confirm"
-            or data == "admin_tenant_broadcast_cancel"
-        ):
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "❌ 你没有权限执行此操作",
-                "show_alert": True,
-            })
-            return
+    if await try_block_secondary_admin_platform_callback(
+        platform_bot_token=platform_bot_token,
+        callback_query=callback_query,
+        from_id=from_id,
+        data=data,
+    ):
+        return
 
     # 先处理机器人侧 callback
     if (
