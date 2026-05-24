@@ -7,42 +7,21 @@ from typing import Optional
 
 from fastapi import FastAPI, Header, Request
 from app.utils.helpers import (
-    cost_ms,
     now_ms,
     json_response,
-    safe_json_dumps,
     sanitize_tenant_id,
-    format_date_ymd,
     is_primary_platform_admin,
     is_secondary_platform_admin,
     build_bot_id_from_bot_username,
     build_tenant_id_from_admin_chat_id,
     escape_html,
-    mask_bot_token,
-    is_skip_text,
-    get_today_ymd,
-    is_same_ymd_ts_ms,
-    build_user_link,
 )
 from app.core.lifespan import lifespan
-from app.services.user_service import (
-    find_bot_button_reply,
-    bot_user_profile_key,
-    check_bot_start_alert,
-)
 from app.services.blacklist_service import (
-    bot_user_black_key,
-    bot_user_blacklist_set_key,
-    platform_tenant_black_key,
-    is_tenant_user_blacklisted,
-    list_blacklisted_users_by_tenant_id,
     list_blacklisted_users,
     format_blacklisted_users_text,
-    format_tenant_blacklisted_users_text,
 )
 from app.services.notice_service import (
-    platform_tenant_notice_map_key,
-    map_platform_notice_message,
     get_platform_notice_target,
 )
 from app.services.apply_service import (
