@@ -365,6 +365,7 @@ from app.services.platform_global_broadcast_execute_service import execute_platf
 from app.services.platform_global_broadcast_finish_service import finish_platform_global_broadcast_confirm
 from app.services.admin_tenant_broadcast_confirm_validation_service import validate_admin_tenant_broadcast_confirm_session
 from app.services.admin_tenant_broadcast_execute_service import execute_admin_tenant_broadcast
+from app.services.admin_tenant_broadcast_finish_service import finish_admin_tenant_broadcast_confirm
 
 # ============================================================
 # Helpers
@@ -1858,32 +1859,17 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
             broadcast_text=broadcast_text,
         )
 
-        await clear_apply_session(from_id)
-
-        if message.get("chat", {}).get("id") and message.get("message_id"):
-            try:
-                await tg(platform_bot_token, "editMessageReplyMarkup", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "reply_markup": {"inline_keyboard": []},
-                })
-            except Exception:
-                pass
-
-        sender_show = str(((sender_bot.get("botInfo") or {}).get("username") or "")).strip()
-        sender_show = f"@{sender_show}" if sender_show else str(sender_bot.get("botId") or "")
-
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": (
-                "📣 群发完成\n"
-                f"租户：{tenant.get('tenantName') or tenant_id}\n"
-                f"发送机器人：{sender_show}\n"
-                f"目标人数：{len(users)}\n"
-                f"成功：{success}\n"
-                f"失败：{failed}"
-            ),
-        })
+        await finish_admin_tenant_broadcast_confirm(
+            platform_bot_token=platform_bot_token,
+            from_id=from_id,
+            message=message,
+            tenant_id=tenant_id,
+            tenant=tenant,
+            sender_bot=sender_bot,
+            users=users,
+            success=success,
+            failed=failed,
+        )
         return
 
     if data == "platform_global_broadcast_target:cancel":
