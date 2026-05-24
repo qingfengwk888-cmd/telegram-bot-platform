@@ -386,6 +386,7 @@ from app.services.platform_apply_reject_callback_service import try_handle_platf
 from app.services.platform_apply_approve_update_callback_service import try_handle_platform_apply_approve_update_callback
 from app.services.platform_apply_approve_create_callback_service import handle_platform_apply_approve_create_callback
 from app.services.platform_apply_approve_callback_service import try_handle_platform_apply_approve_callback
+from app.services.platform_apply_review_callback_service import try_handle_platform_apply_review_callback
 
 # ============================================================
 # Helpers
@@ -1948,42 +1949,12 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    match = re.match(r"^(approve|reject):(.+)$", data)
-    if not match:
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": "未知操作",
-            "show_alert": True,
-        })
-        return
-
-    action = match.group(1)
-    apply_id = match.group(2)
-    valid, apply = await load_and_validate_platform_apply_review(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        apply_id=apply_id,
-    )
-    if not valid:
-        return
-
-    if await try_handle_platform_apply_reject_callback(
-        callback_query=callback_query,
-        platform_bot_token=platform_bot_token,
-        from_id=from_id,
-        action=action,
-        apply=apply,
-        message=message,
-    ):
-        return
-
-    if await try_handle_platform_apply_approve_callback(
+    if await try_handle_platform_apply_review_callback(
         request=request,
         callback_query=callback_query,
         platform_bot_token=platform_bot_token,
         from_id=from_id,
-        action=action,
-        apply=apply,
+        data=data,
         message=message,
     ):
         return
