@@ -188,6 +188,7 @@ from app.services.platform_dashboard_message_service import try_handle_platform_
 from app.services.platform_tenant_list_menu_message_service import try_handle_platform_tenant_list_menu_message
 from app.services.platform_global_broadcast_menu_message_service import try_handle_platform_global_broadcast_menu_message
 from app.services.platform_users_command_service import try_handle_platform_users_command
+from app.services.platform_broadcast_all_command_service import try_handle_platform_broadcast_all_command
 
 # ============================================================
 # Helpers
@@ -667,53 +668,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         ):
             return
 
-        if text.startswith("/broadcast_all"):
-            parts = text.split(maxsplit=1)
-            if len(parts) < 2 or not parts[1].strip():
-                await tg(platform_bot_token, "sendMessage", {
-                    "chat_id": chat_id,
-                    "text": "用法：/broadcast_all 群发内容",
-                })
-                return
-
-            broadcast_text = parts[1].strip()
-            tenant_ids = await get_tenant_index()
-
-            total_target = 0
-            success = 0
-            failed = 0
-
-            for tenant_id in tenant_ids:
-                tenant = await load_tenant(tenant_id)
-                if not tenant:
-                    continue
-
-                if await is_platform_tenant_blacklisted(tenant_id):
-                    continue
-
-                users = await list_started_users_by_tenant_id(tenant_id)
-                for u in users:
-                    user_id = int(u["userId"])
-                    total_target += 1
-
-                    try:
-                        await tg(tenant["botToken"], "sendMessage", {
-                            "chat_id": user_id,
-                            "text": broadcast_text,
-                        })
-                        success += 1
-                    except Exception:
-                        failed += 1
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    "🌐 全部群发完成\n"
-                    f"目标人数：{total_target}\n"
-                    f"成功：{success}\n"
-                    f"失败：{failed}"
-                ),
-            })
+        if await try_handle_platform_broadcast_all_command(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         if text.startswith("/broadcast"):
