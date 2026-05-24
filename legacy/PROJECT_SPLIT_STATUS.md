@@ -103,7 +103,7 @@ python scripts/report_legacy_functions.py | head -100
 本轮已完成 service 层 legacy_app 依赖清理。
 
 已清理：
-- app/services 内部的 `from app import legacy_app as legacy`
+- active app/scripts 源码中已无 legacy_app 依赖
 - app/telegram/formatters.py 对 legacy_app 的依赖
 - blacklist_service.py 中租户维度黑名单兼容逻辑已迁为基于 tenant 下 bot 汇总判断
 

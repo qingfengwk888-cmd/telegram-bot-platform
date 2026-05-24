@@ -1,3 +1,5 @@
 legacy_app.py remaining top-level functions: 0
 
-Internal API handlers have been moved out of legacy_app.py.
+app/legacy_app.py has been reduced to a compatibility placeholder.
+Runtime entrypoint is app/main.py.
+No active app/scripts source imports app.legacy_app.
