@@ -370,6 +370,7 @@ from app.services.platform_global_broadcast_target_cancel_callback_service impor
 from app.services.platform_global_broadcast_target_select_callback_service import try_handle_platform_global_broadcast_target_select_callback
 from app.services.platform_noop_callback_service import try_handle_platform_noop_callback
 from app.services.admin_tenant_menu_callback_service import try_handle_admin_tenant_menu_callback
+from app.services.platform_ad_pick_callback_service import try_handle_platform_ad_pick_callback
 
 # ============================================================
 # Helpers
@@ -1908,59 +1909,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    pick_match = re.match(r"^platform_ad_pick:(edit|delete):(.+)$", data)
-    if pick_match:
-        action = pick_match.group(1)
-        ad_id = pick_match.group(2)
-
-        ad_item = await get_platform_ad_by_id(ad_id)
-        if not ad_item:
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "广告不存在或已删除",
-                "show_alert": True,
-            })
-            return
-
-        if action == "edit":
-            await save_apply_session(from_id, {
-                "mode": "platform_ad_config",
-                "step": "ad_text_input",
-                "action": "edit",
-                "adId": ad_id,
-            })
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "请发送新的广告文案",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": (
-                    f"当前广告文案：{ad_item.get('text') or ''}\n"
-                    f"当前广告链接：{ad_item.get('url') or ''}\n\n"
-                    "请发送新的广告文案。"
-                ),
-            })
-            return
-
-        if action == "delete":
-            items = await list_platform_ads()
-            new_items = [x for x in items if str(x.get('adId') or '') != ad_id]
-
-            await save_platform_ads(new_items)
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "广告已删除",
-            })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": from_id,
-                "text": f"✅ 已删除广告：{ad_item.get('text') or ad_id}",
-            })
-            return
+    if await try_handle_platform_ad_pick_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        from_id=from_id,
+        data=data,
+    ):
+        return
 
     menu_match = re.match(r"^platform_ad_menu:(add|edit|delete)$", data)
     if menu_match:
