@@ -183,6 +183,7 @@ from app.services.bot_callback_dispatch_service import dispatch_bot_callback
 from app.services.platform_callback_dispatch_service import dispatch_platform_callback
 from app.services.platform_admin_tenant_broadcast_input_service import try_handle_platform_admin_tenant_broadcast_input
 from app.services.platform_global_broadcast_input_service import try_handle_platform_global_broadcast_input
+from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
 
 # ============================================================
 # Helpers
@@ -655,33 +656,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
             })
             return
 
-        if text == "📢 广告设置":
-            items = await list_platform_ads()
-
-            if not items:
-                preview = "当前未设置广告。"
-            else:
-                lines = []
-                for idx, item in enumerate(items[:10], start=1):
-                    lines.append(
-                        f"{idx}. {escape_html(item.get('text') or '')}\n"
-                        f"   {escape_html(item.get('url') or '')}"
-                    )
-                preview = "\n\n".join(lines)
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": (
-                    "📢 广告设置\n\n"
-                    f"{preview}\n\n"
-                    "请选择操作："
-                ),
-                "parse_mode": "HTML",
-                "reply_markup": build_platform_ad_menu_buttons(),
-                "link_preview_options": {
-                    "is_disabled": True
-                },
-            })
+        if await try_handle_platform_ad_settings_message(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         if text.startswith("/users"):
