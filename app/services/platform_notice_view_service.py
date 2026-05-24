@@ -33,42 +33,87 @@ def is_new_tenant_notice_text(text: str) -> bool:
 async def refresh_tenant_detail_message(
     *,
     platform_bot_token: str,
-    message: dict,
-    tenant: dict,
-    from_id: int,
+    chat_id: int,
+    message_id: int,
+    tenant_id: str,
 ) -> None:
-    if not message.get("chat", {}).get("id") or not message.get("message_id"):
+    from app.telegram.api import tg
+    from app.services.tenant_service import (
+        load_tenant,
+        list_bots_by_tenant_id,
+        list_started_users_by_tenant_id_for_admin,
+    )
+    from app.telegram.formatters import (
+        format_tenant_summary_text,
+        format_started_users_text,
+        format_tenant_category_text,
+    )
+    from app.telegram.keyboards import build_tenant_detail_action_buttons
+
+    tenant = await load_tenant(tenant_id)
+    if not tenant:
         return
 
-    tenant_id = str(tenant.get("tenantId") or "").strip()
-    original_text = str(message.get("text") or "")
-
-    # 1) 如果当前消息是“新租户/新机器人接入通知”页，只刷新按钮状态，不改正文
-    if is_new_tenant_notice_text(original_text):
-        await tg(platform_bot_token, "editMessageReplyMarkup", {
-            "chat_id": message["chat"]["id"],
-            "message_id": message["message_id"],
-            "reply_markup": build_new_tenant_notice_buttons(tenant),
-        })
-        return
-
-    # 2) 如果当前消息是租户详情页，刷新正文 + 按钮
     bots = await list_bots_by_tenant_id(tenant_id)
     users = await list_started_users_by_tenant_id_for_admin(tenant_id)
 
-    await tg(platform_bot_token, "editMessageText", {
-        "chat_id": message["chat"]["id"],
-        "message_id": message["message_id"],
-        "text": (
-            (await format_tenant_summary_text(tenant, bots))
+    page = 1
+    page_size = 25
+    total = len(users)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    def build_text(limit: int) -> str:
+        display_users = users[:limit]
+        current_total_pages = max(1, (total + limit - 1) // limit)
+
+        page_text = (
+            f"\n\n📄 当前第 1/{current_total_pages} 页，共 {total} 条启动记录。"
+            if total > limit
+            else ""
+        )
+
+        return (
+            "__SUMMARY__"
             + "\n\n"
-            + format_started_users_text(tenant, users)
+            + format_started_users_text(tenant, display_users)
+            + page_text
             + "\n\n"
             + format_tenant_category_text(tenant)
-        ),
+        )
+
+    summary_text = await format_tenant_summary_text(tenant)
+
+    # Telegram 单条消息限制约 4096；留余量，避免昵称/source 过长导致失败。
+    text_body = build_text(page_size).replace("__SUMMARY__", summary_text)
+    while len(text_body) > 3400 and page_size > 5:
+        page_size -= 5
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        text_body = build_text(page_size).replace("__SUMMARY__", summary_text)
+
+    reply_markup = build_tenant_detail_action_buttons(tenant_id, chat_id)
+    keyboard = list((reply_markup or {}).get("inline_keyboard") or [])
+
+    if total_pages > 1:
+        keyboard.append([
+            {
+                "text": f"{page}/{total_pages}",
+                "callback_data": "platform_noop",
+            },
+            {
+                "text": "下一页 ➡️",
+                "callback_data": f"admin_tenant:view:{tenant_id}:2",
+            },
+        ])
+
+    reply_markup["inline_keyboard"] = keyboard
+
+    await tg(platform_bot_token, "editMessageText", {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text_body,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
-        "reply_markup": build_tenant_detail_action_buttons(tenant_id, from_id),
+        "reply_markup": reply_markup,
     })
 
 
