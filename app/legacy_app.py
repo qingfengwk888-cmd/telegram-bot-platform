@@ -197,6 +197,7 @@ from app.services.tenant_blacklist_view_message_service import try_handle_tenant
 from app.services.tenant_broadcast_start_message_service import try_handle_tenant_broadcast_start_message
 from app.services.tenant_help_message_service import try_handle_tenant_help_message
 from app.services.tenant_language_pack_message_service import try_handle_tenant_language_pack_message
+from app.services.tenant_modify_deprecated_message_service import try_handle_tenant_modify_deprecated_message
 
 # ============================================================
 # Helpers
@@ -768,11 +769,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    if text.startswith("/modify"):
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "当前已不在底部菜单展示该功能，请按你的现有流程使用。",
-        })
+    if await try_handle_tenant_modify_deprecated_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
 
