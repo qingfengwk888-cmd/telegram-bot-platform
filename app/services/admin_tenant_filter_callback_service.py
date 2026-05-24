@@ -1,0 +1,70 @@
+import re
+
+
+async def try_handle_admin_tenant_filter_callback(
+    *,
+    callback_query: dict,
+    platform_bot_token: str,
+    data: str,
+    message: dict,
+) -> bool:
+    from app import legacy_app as legacy
+
+    filter_match = re.match(r"^admin_tenant_filter:category:(local|external|other|blacklisted)$", data)
+    if not filter_match:
+        return False
+
+    category = filter_match.group(1)
+
+    ids = await legacy.get_tenant_index()
+    tenants = []
+
+    for tenant_id in ids:
+        tenant = await legacy.load_tenant(tenant_id)
+        if not tenant:
+            continue
+
+        if category == "blacklisted":
+            if tenant.get("isBlacklisted"):
+                tenants.append(tenant)
+        else:
+            if tenant.get("isBlacklisted"):
+                continue
+
+            tenant_category = str(tenant.get("category") or "other")
+            if tenant_category not in {"local", "external", "other"}:
+                tenant_category = "other"
+
+            if tenant_category == category:
+                tenants.append(tenant)
+
+    category_label_map = {
+        "local": "招商(本)",
+        "external": "招商(外)",
+        "other": "其他",
+        "blacklisted": "已拉黑",
+    }
+    category_label = category_label_map.get(category, "其他")
+
+    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+        "callback_query_id": callback_query["id"],
+        "text": f"已筛选：{category_label}",
+    })
+
+    if not message.get("chat", {}).get("id") or not message.get("message_id"):
+        return True
+
+    await legacy.tg(platform_bot_token, "editMessageText", {
+        "chat_id": message["chat"]["id"],
+        "message_id": message["message_id"],
+        "text": legacy.format_simple_tenant_list_text(
+            f"🏢 所有租户 · 分类：{category_label}",
+            tenants
+        ),
+        "parse_mode": "HTML",
+        "reply_markup": legacy.build_admin_tenant_pick_buttons_with_back(
+            tenants,
+            "admin_tenant_back:category"
+        ),
+    })
+    return True

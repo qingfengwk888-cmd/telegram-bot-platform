@@ -377,6 +377,7 @@ from app.services.tenant_black_toggle_callback_service import try_handle_tenant_
 from app.services.tenant_category_callback_service import try_handle_tenant_category_callback
 from app.services.admin_tenant_back_callback_service import try_handle_admin_tenant_back_callback
 from app.services.admin_tenant_sort_callback_service import try_handle_admin_tenant_sort_callback
+from app.services.admin_tenant_filter_callback_service import try_handle_admin_tenant_filter_callback
 
 # ============================================================
 # Helpers
@@ -1973,64 +1974,13 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
     ):
         return
 
-    filter_match = re.match(r"^admin_tenant_filter:category:(local|external|other|blacklisted)$", data)
-    if filter_match:
-        category = filter_match.group(1)
-
-        ids = await get_tenant_index()
-        tenants = []
-
-        for tenant_id in ids:
-            tenant = await load_tenant(tenant_id)
-            if not tenant:
-                continue
-
-            if category == "blacklisted":
-                if tenant.get("isBlacklisted"):
-                    tenants.append(tenant)
-            else:
-                if tenant.get("isBlacklisted"):
-                    continue
-
-                tenant_category = str(tenant.get("category") or "other")
-                if tenant_category not in {"local", "external", "other"}:
-                    tenant_category = "other"
-
-                if tenant_category == category:
-                    tenants.append(tenant)
-
-        category_label_map = {
-            "local": "招商(本)",
-            "external": "招商(外)",
-            "other": "其他",
-            "blacklisted": "已拉黑",
-        }
-        category_label = category_label_map.get(category, "其他")
-
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_query["id"],
-            "text": f"已筛选：{category_label}",
-        })
-
-        if not message.get("chat", {}).get("id") or not message.get("message_id"):
-            return
-
-        await tg(platform_bot_token, "editMessageText", {
-            "chat_id": message["chat"]["id"],
-            "message_id": message["message_id"],
-            "text": format_simple_tenant_list_text(
-                f"🏢 所有租户 · 分类：{category_label}",
-                tenants
-            ),
-            "parse_mode": "HTML",
-            "reply_markup": build_admin_tenant_pick_buttons_with_back(
-                tenants,
-                "admin_tenant_back:category"
-            ),
-        })
+    if await try_handle_admin_tenant_filter_callback(
+        callback_query=callback_query,
+        platform_bot_token=platform_bot_token,
+        data=data,
+        message=message,
+    ):
         return
-
-
 
     tenant_view_match = re.match(r"^admin_tenant:view:(.+)$", data)
     if tenant_view_match:
