@@ -11,6 +11,20 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.bot_service import (
+    load_bot_by_bot_username,
+    list_started_users,
+    load_bot,
+    save_bot,
+    get_bot_index,
+    add_bot_index,
+    remove_bot_index,
+    pick_default_bot_for_tenant,
+    pick_sender_bot_for_tenant,
+    save_started_user_profile,
+    set_bot_user_blacklisted,
+    is_bot_user_blacklisted,
+)
 from app.services.tenant_service import (
     load_tenant,
     save_tenant,
@@ -295,12 +309,6 @@ def require_internal_api_key(
         if m:
             header_key = m.group(1)
     return bool(INTERNAL_API_KEY) and header_key == INTERNAL_API_KEY
-
-async def load_bot_by_bot_username(bot_username: str) -> Optional[dict]:
-    bot_id = build_bot_id_from_bot_username(bot_username)
-    return await load_bot(bot_id)
-
-
 
 
 def get_today_ymd() -> str:
@@ -874,9 +882,6 @@ def bot_start_alert_cooldown_key(bot_id: str) -> str:
     return f"b:{bot_id}:start_alert:cooldown"
 
 
-async def save_started_user_profile(bot_id: str, user: dict) -> None:
-    await save_started_user_profile_db(bot_id, user)
-
 
 async def check_bot_start_alert(bot: dict, user_profile: dict) -> None:
     bot_id = sanitize_tenant_id(bot.get("botId") or "")
@@ -959,30 +964,6 @@ async def check_bot_start_alert(bot: dict, user_profile: dict) -> None:
             )
 
 
-async def pick_default_bot_for_tenant(tenant_id: str) -> Optional[dict]:
-    latest_bot_id = await get_latest_bot_id_by_tenant_id_db(tenant_id)
-    if not latest_bot_id:
-        return None
-    return await load_bot(latest_bot_id)
-
-
-async def pick_sender_bot_for_tenant(tenant_id: str) -> Optional[dict]:
-    return await pick_default_bot_for_tenant(tenant_id)
-
-
-
-async def list_started_users(bot_id: str) -> List[dict]:
-    started = time.perf_counter()
-    users = await list_started_users_by_bot_id_db(bot_id)
-    logger.info(
-        "perf list_started_users bot_id=%s users=%s cost_ms=%s source=db",
-        bot_id,
-        len(users),
-        cost_ms(started),
-    )
-    return users
-
-
 
 
 def tenant_latest_bot_id_key(tenant_id: str) -> str:
@@ -1045,12 +1026,6 @@ async def get_platform_notice_target(message_id: int) -> Optional[dict]:
 
 
 
-async def set_bot_user_blacklisted(bot_id: str, user_id: int, value: bool) -> None:
-    await set_bot_user_blacklisted_db(bot_id, user_id, value)
-
-
-async def is_bot_user_blacklisted(bot_id: str, user_id: int) -> bool:
-    return await is_bot_user_blacklisted_db(bot_id, user_id)
 
 
 async def is_tenant_user_blacklisted(tenant_id: str, user_id: int) -> bool:
@@ -1338,28 +1313,9 @@ async def redis_set_json(key: str, value: dict, ttl_seconds: Optional[int] = Non
 
 
 
-async def load_bot(bot_id: str) -> Optional[dict]:
-    return await load_bot_db(bot_id)
-
-async def save_bot(bot: dict) -> None:
-    await save_bot_db(bot)
 
 
 
-
-
-async def get_bot_index() -> List[str]:
-    return await get_bot_index_db()
-
-
-async def add_bot_index(bot_id: str) -> None:
-    # 数据库版不需要维护 Redis bot:index
-    return None
-
-
-async def remove_bot_index(bot_id: str) -> None:
-    # 数据库版不需要维护 Redis bot:index
-    return None
 
 
 async def list_tenants_by_admin_chat_id(admin_chat_id: int) -> List[dict]:
