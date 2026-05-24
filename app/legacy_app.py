@@ -184,6 +184,7 @@ from app.services.platform_callback_dispatch_service import dispatch_platform_ca
 from app.services.platform_admin_tenant_broadcast_input_service import try_handle_platform_admin_tenant_broadcast_input
 from app.services.platform_global_broadcast_input_service import try_handle_platform_global_broadcast_input
 from app.services.platform_ad_settings_message_service import try_handle_platform_ad_settings_message
+from app.services.platform_dashboard_message_service import try_handle_platform_dashboard_message
 
 # ============================================================
 # Helpers
@@ -627,14 +628,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
         return
 
     if is_platform_admin:
-        if text == "📊 数据概览":
-            dashboard_text = await build_platform_dashboard_text()
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": dashboard_text,
-                "parse_mode": "HTML",
-            })
+        if await try_handle_platform_dashboard_message(
+            platform_bot_token=platform_bot_token,
+            chat_id=chat_id,
+            text=text,
+        ):
             return
 
         if text == "🏢 所有租户":
