@@ -8,6 +8,8 @@ from app.config import (
     PLATFORM_SECONDARY_ADMIN_CHAT_IDS,
 )
 from app.core.logger import logger
+from app.core.request_helpers import get_platform_bot_token, get_platform_admin_chat_id
+from app.core.keys import bot_start_alert_window_key, bot_start_alert_cooldown_key
 from app.storage.redis_compat import redis_client
 from app.telegram.api import tg
 from app.utils.helpers import now_ms, escape_html, sanitize_tenant_id
@@ -124,22 +126,3 @@ async def check_bot_start_alert(bot: dict, user_profile: dict) -> None:
             )
 
 
-def _legacy():
-    from app import legacy_app
-    return legacy_app
-
-
-def get_platform_bot_token() -> str:
-    return _legacy().get_platform_bot_token()
-
-
-def get_platform_admin_chat_id() -> int:
-    return _legacy().get_platform_admin_chat_id()
-
-
-def bot_start_alert_window_key(bot_id: str) -> str:
-    return _legacy().bot_start_alert_window_key(bot_id)
-
-
-def bot_start_alert_cooldown_key(bot_id: str) -> str:
-    return _legacy().bot_start_alert_cooldown_key(bot_id)
