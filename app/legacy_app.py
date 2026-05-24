@@ -3072,17 +3072,6 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         return
 
 
-    if data == "bot_remove_cancel":
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "已取消",
-        })
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": from_id,
-            "text": "已取消移除操作。",
-        })
-        return
-
     if not session:
         await tg(platform_bot_token, "answerCallbackQuery", {
             "callback_query_id": callback_id,
