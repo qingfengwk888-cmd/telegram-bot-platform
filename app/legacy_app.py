@@ -11,6 +11,13 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
+from app.services.lock_service import (
+    acquire_short_lock,
+    release_short_lock,
+    set_current_lock,
+    get_current_lock,
+    refresh_lock_if_current,
+)
 from app.core.keys import (
     tenant_started_users_key,
     bot_stat_lock_key,
@@ -785,15 +792,6 @@ async def notify_new_bot_connected(
 
 
 
-async def acquire_short_lock(key: str, ttl: int = 3) -> bool:
-    return bool(await redis_client.set(key, "1", ex=ttl, nx=True))
-
-async def release_short_lock(key: str) -> None:
-    await redis_client.delete(key)
-
-
-
-
 
 
 async def refresh_tenant_latest_bot_id(tenant_id: str) -> None:
@@ -978,34 +976,7 @@ def is_busy_input_session(session: Optional[dict]) -> bool:
 
 
 
-async def set_current_lock(tenant_id: str, admin_chat_id: int, user_id: int) -> None:
-    value = {"userId": int(user_id), "ts": now_ms()}
-    await redis_set_json(
-        tenant_data_key(tenant_id, "lock", admin_chat_id),
-        value,
-        LOCK_TTL_SECONDS,
-    )
 
-
-async def get_current_lock(tenant_id: str, admin_chat_id: int) -> Optional[int]:
-    data = await redis_get_json(tenant_data_key(tenant_id, "lock", admin_chat_id))
-    if not data or "userId" not in data:
-        return None
-    try:
-        return int(data["userId"])
-    except Exception:
-        return None
-
-
-async def refresh_lock_if_current(tenant_id: str, admin_chat_id: int, user_id: int) -> None:
-    locked_user_id = await get_current_lock(tenant_id, admin_chat_id)
-    if locked_user_id is not None and int(locked_user_id) == int(user_id):
-        await set_current_lock(tenant_id, admin_chat_id, user_id)
-
-
-# ============================================================
-# Telegram API
-# ============================================================
 
 
 async def get_or_create_tenant_by_admin(
