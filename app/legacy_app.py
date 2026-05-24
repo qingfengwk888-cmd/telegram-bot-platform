@@ -196,6 +196,7 @@ from app.services.tenant_apply_start_message_service import try_handle_tenant_ap
 from app.services.tenant_blacklist_view_message_service import try_handle_tenant_blacklist_view_message
 from app.services.tenant_broadcast_start_message_service import try_handle_tenant_broadcast_start_message
 from app.services.tenant_help_message_service import try_handle_tenant_help_message
+from app.services.tenant_language_pack_message_service import try_handle_tenant_language_pack_message
 
 # ============================================================
 # Helpers
@@ -760,16 +761,11 @@ async def handle_platform_message(msg: dict, request: Request) -> None:
     ):
         return
 
-    if text == "🇨🇳 切换中文包":
-        await tg(platform_bot_token, "sendMessage", {
-            "chat_id": chat_id,
-            "text": "点击下方按钮切换 Telegram 中文语言包：",
-            "reply_markup": {
-                "inline_keyboard": [[
-                    {"text": "点击切换中文包", "url": "https://t.me/setlanguage/zhcncc"}
-                ]]
-            },
-        })
+    if await try_handle_tenant_language_pack_message(
+        platform_bot_token=platform_bot_token,
+        chat_id=chat_id,
+        text=text,
+    ):
         return
 
     if text.startswith("/modify"):
