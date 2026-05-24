@@ -70,6 +70,7 @@ async def dispatch_platform_tenant_admin_callback(
         platform_bot_token=platform_bot_token,
         from_id=from_id,
         data=data,
+        message=message,
     ):
         return True
 

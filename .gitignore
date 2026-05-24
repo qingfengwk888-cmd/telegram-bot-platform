@@ -5,3 +5,4 @@ __pycache__/
 data/*.db
 data/*.sqlite
 legacy/backups/
+redis_export.json
