@@ -310,6 +310,8 @@ from app.core.request_helpers import (
 
 from app.services.message_classify_service import (classify_message_action, classify_platform_action, is_plain_user_text_message)
 
+from app.services.platform_ad_service import (get_platform_ad_by_id, list_platform_ads, save_platform_ads)
+
 # ============================================================
 # Helpers
 # ============================================================
@@ -636,22 +638,8 @@ async def refresh_tenant_latest_bot_id(tenant_id: str) -> None:
 
 
 
-async def list_platform_ads() -> List[dict]:
-    data = await load_platform_ad_config()
-    items = (data or {}).get("items") or []
-    if not isinstance(items, list):
-        return []
-    return items
 
-async def get_platform_ad_by_id(ad_id: str) -> Optional[dict]:
-    items = await list_platform_ads()
-    for item in items:
-        if str(item.get("adId") or "") == str(ad_id):
-            return item
-    return None
 
-async def save_platform_ads(items: List[dict]) -> None:
-    await save_platform_ad_config({"items": items})
 
 
 async def redis_get_json(key: str) -> Optional[dict]:
