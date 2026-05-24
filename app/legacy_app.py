@@ -382,6 +382,7 @@ from app.services.admin_tenant_view_callback_service import try_handle_admin_ten
 from app.services.platform_apply_review_validation_service import load_and_validate_platform_apply_review
 from app.services.platform_apply_reject_callback_service import try_handle_platform_apply_reject_callback
 from app.services.platform_apply_approve_update_callback_service import try_handle_platform_apply_approve_update_callback
+from app.services.platform_apply_approve_create_callback_service import handle_platform_apply_approve_create_callback
 
 # ============================================================
 # Helpers
@@ -2035,50 +2036,14 @@ async def handle_platform_callback_query(callback_query: dict, request: Request)
             ):
                 return
 
-            result = await create_bot_from_apply(request, apply)
-
-            apply["status"] = "approved"
-            apply["reviewedAt"] = now_ms()
-            apply["reviewerChatId"] = from_id
-            apply["reviewerAction"] = "approve"
-            apply["approvedTenantId"] = result["tenant"]["tenantId"]
-            await save_apply(apply)
-
-            await tg(platform_bot_token, "answerCallbackQuery", {
-                "callback_query_id": callback_query["id"],
-                "text": "已同意并创建成功",
-            })
-
-            if message.get("chat", {}).get("id") and message.get("message_id"):
-                await tg(platform_bot_token, "editMessageReplyMarkup", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "reply_markup": {"inline_keyboard": []},
-                })
-                await tg(platform_bot_token, "editMessageText", {
-                    "chat_id": message["chat"]["id"],
-                    "message_id": message["message_id"],
-                    "text": (
-                        f"{build_apply_summary(apply)}\n\n"
-                        "✅ <b>已通过</b>\n"
-                        f"🏢 tenantId：<code>{escape_html(result['tenant']['tenantId'])}</code>"
-                    ),
-                    "parse_mode": "HTML",
-                })
-
-            await tg(platform_bot_token, "sendMessage", {
-                "chat_id": apply["applicantChatId"],
-                "text": (
-                    "✅ 你的机器人接入申请已通过审核。\n\n"
-                    "机器人已完成接入，可以开始使用。\n"
-                    "如需修改配置，请按现有流程进入对应机器人管理。"
-                ),
-            })
-
-            await tg(apply["botToken"], "sendMessage", {
-                "chat_id": apply["applicantChatId"],
-                "text": "✅ 接入成功",
-            })
+            await handle_platform_apply_approve_create_callback(
+                request=request,
+                callback_query=callback_query,
+                platform_bot_token=platform_bot_token,
+                from_id=from_id,
+                apply=apply,
+                message=message,
+            )
             return
 
         except Exception as err:
