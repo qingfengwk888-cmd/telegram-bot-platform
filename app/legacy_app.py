@@ -348,6 +348,7 @@ from app.services.tenant_select_blacklist_callback_service import try_handle_ten
 from app.services.tenant_select_welcome_callback_service import try_handle_tenant_select_welcome_callback
 from app.services.tenant_select_broadcast_callback_service import try_handle_tenant_select_broadcast_callback
 from app.services.tenant_remove_confirm_callback_service import try_handle_tenant_remove_confirm_callback
+from app.services.bot_callback_session_required_service import try_handle_missing_bot_callback_session
 
 # ============================================================
 # Helpers
@@ -3072,12 +3073,11 @@ async def handle_bot_callback_query(callback_query: dict, request: Request) -> N
         return
 
 
-    if not session:
-        await tg(platform_bot_token, "answerCallbackQuery", {
-            "callback_query_id": callback_id,
-            "text": "会话已过期，请重新开始",
-            "show_alert": True,
-        })
+    if await try_handle_missing_bot_callback_session(
+        platform_bot_token=platform_bot_token,
+        callback_id=callback_id,
+        session=session,
+    ):
         return
 
     if await try_handle_bot_button_flow_callback(
