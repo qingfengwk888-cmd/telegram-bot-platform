@@ -8,7 +8,10 @@ async def try_handle_admin_tenant_filter_callback(
     data: str,
     message: dict,
 ) -> bool:
-    from app import legacy_app as legacy
+    from app.telegram.api import tg
+    from app.services.tenant_service import get_tenant_index, load_tenant
+    from app.services.platform_dashboard_view_service import format_simple_tenant_list_text
+    from app.telegram.keyboards import build_admin_tenant_pick_buttons_with_back
 
     filter_match = re.match(r"^admin_tenant_filter:category:(local|external|other|blacklisted)$", data)
     if not filter_match:
@@ -16,11 +19,11 @@ async def try_handle_admin_tenant_filter_callback(
 
     category = filter_match.group(1)
 
-    ids = await legacy.get_tenant_index()
+    ids = await get_tenant_index()
     tenants = []
 
     for tenant_id in ids:
-        tenant = await legacy.load_tenant(tenant_id)
+        tenant = await load_tenant(tenant_id)
         if not tenant:
             continue
 
@@ -46,7 +49,7 @@ async def try_handle_admin_tenant_filter_callback(
     }
     category_label = category_label_map.get(category, "其他")
 
-    await legacy.tg(platform_bot_token, "answerCallbackQuery", {
+    await tg(platform_bot_token, "answerCallbackQuery", {
         "callback_query_id": callback_query["id"],
         "text": f"已筛选：{category_label}",
     })
@@ -54,15 +57,15 @@ async def try_handle_admin_tenant_filter_callback(
     if not message.get("chat", {}).get("id") or not message.get("message_id"):
         return True
 
-    await legacy.tg(platform_bot_token, "editMessageText", {
+    await tg(platform_bot_token, "editMessageText", {
         "chat_id": message["chat"]["id"],
         "message_id": message["message_id"],
-        "text": legacy.format_simple_tenant_list_text(
+        "text": format_simple_tenant_list_text(
             f"🏢 所有租户 · 分类：{category_label}",
             tenants
         ),
         "parse_mode": "HTML",
-        "reply_markup": legacy.build_admin_tenant_pick_buttons_with_back(
+        "reply_markup": build_admin_tenant_pick_buttons_with_back(
             tenants,
             "admin_tenant_back:category"
         ),
