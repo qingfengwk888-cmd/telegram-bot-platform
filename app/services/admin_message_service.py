@@ -1,8 +1,10 @@
 from app.core.keys import tenant_data_key
 from app.services.bot_user_blacklist_command_service import try_handle_bot_user_blacklist_command
 from app.services.lock_service import get_current_lock, set_current_lock
+from app.services.user_service import find_bot_button_reply
 from app.storage.redis_compat import redis_client
 from app.telegram.api import tg
+
 
 
 async def handle_admin_message(msg: dict, bot: dict) -> None:
@@ -45,7 +47,18 @@ async def handle_admin_message(msg: dict, bot: dict) -> None:
         })
         return
 
+    text = str(msg.get("text") or "").strip()
+    button_reply = find_bot_button_reply(bot, text) if text else ""
+
+    if button_reply:
+        await tg(bot["botToken"], "sendMessage", {
+            "chat_id": admin_chat_id,
+            "text": button_reply,
+        })
+        return
+
     lock = await get_current_lock(bot["tenantId"], admin_chat_id)
+
     if not lock:
         await tg(bot["botToken"], "sendMessage", {
             "chat_id": admin_chat_id,
