@@ -26,7 +26,7 @@ async def should_skip_user_message_before_dispatch(
     if limit_result["blocked"]:
         if limit_result["message"]:
             await reply_rate_limited_for_message(
-                bot,
+                bot["botToken"],
                 int(msg["chat"]["id"]),
                 limit_result["message"],
             )
