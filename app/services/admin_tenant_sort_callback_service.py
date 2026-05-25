@@ -13,7 +13,7 @@ async def try_handle_admin_tenant_sort_callback(
     from app.services.platform_dashboard_view_service import format_simple_tenant_list_text
     from app.services.admin_tenant_list_pagination_service import clamp_page, slice_tenants_for_page, build_admin_tenant_paginated_pick_buttons
 
-    sort_match = re.match(r"^admin_tenant_sort:(asc|desc)(?::(\\d+))?$", data)
+    sort_match = re.match(r"^admin_tenant_sort:(asc|desc)(?::(\d+))?$", data)
     if not sort_match:
         return False
 
