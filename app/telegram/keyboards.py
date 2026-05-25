@@ -606,3 +606,23 @@ def build_welcome_buttons(bot: dict) -> List[List[dict]]:
                 keyboard.append(row_buttons)
 
     return keyboard
+
+
+def build_admin_user_action_buttons(user_id: int, is_blacklisted: bool = False) -> dict:
+    black_text = "解黑" if is_blacklisted else "拉黑"
+    black_action = "unblack" if is_blacklisted else "black"
+
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "回复",
+                    "callback_data": f"admin_user_reply:{user_id}",
+                },
+                {
+                    "text": black_text,
+                    "callback_data": f"admin_user_black:{black_action}:{user_id}",
+                },
+            ]
+        ]
+    }

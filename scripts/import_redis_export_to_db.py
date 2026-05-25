@@ -29,7 +29,14 @@ def parse_json_maybe(value: Any) -> Any:
 
 
 def get_item_value(item: dict) -> Any:
-    return parse_json_maybe(item.get("value"))
+    value = item.get("value")
+
+    # redis_export.json 可能是两层结构：
+    # {"key": "...", "value": {"type": "string", "ttl": -1, "value": "{...}"}}
+    if isinstance(value, dict) and "value" in value and "type" in value:
+        value = value.get("value")
+
+    return parse_json_maybe(value)
 
 
 async def upsert_tenant(session, tenant: dict) -> None:

@@ -43,6 +43,7 @@ async def bot_webhook(
 
         update = await request.json()
 
+
         if await is_duplicate_update(f"bot:{bot_id}", update.get("update_id")):
             return {"ok": True, "botId": bot_id, "ignored": "duplicate_update"}
 

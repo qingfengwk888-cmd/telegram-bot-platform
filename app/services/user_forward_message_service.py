@@ -1,9 +1,10 @@
 from app.config import DEFAULT_FIRST_ACK_TEXT, FIRST_ACK_TTL_SECONDS, MESSAGE_MAP_TTL_SECONDS
+from app.services.bot_service import is_bot_user_blacklisted
 from app.core.keys import tenant_data_key
 from app.storage.redis_compat import redis_client
 from app.telegram.api import tg
 from app.telegram.formatters import escape_html
-from app.telegram.keyboards import build_profile_buttons
+from app.telegram.keyboards import build_admin_user_action_buttons
 
 
 async def forward_user_message_to_admin_and_ack(
@@ -17,6 +18,8 @@ async def forward_user_message_to_admin_and_ack(
     admin_chat_id: int,
 ) -> None:
     admin_header = f"👤 用户：{user_link}\n🆔 UID：<code>{user_id}</code>"
+    is_blacklisted = await is_bot_user_blacklisted(bot["botId"], int(user_id))
+    admin_action_buttons = build_admin_user_action_buttons(int(user_id), is_blacklisted)
     admin_message_id = None
 
     if msg.get("text") is not None:
@@ -29,6 +32,7 @@ async def forward_user_message_to_admin_and_ack(
             ),
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
+            "reply_markup": admin_action_buttons,
         })
         admin_message_id = ((sent or {}).get("result") or {}).get("message_id")
     else:
@@ -46,9 +50,7 @@ async def forward_user_message_to_admin_and_ack(
             "message_id": msg["message_id"],
             "caption": caption_text,
             "parse_mode": "HTML",
-            "reply_markup": {
-                "inline_keyboard": build_profile_buttons(int(user_id), username, display_name)
-            },
+            "reply_markup": admin_action_buttons,
         })
         admin_message_id = ((sent or {}).get("result") or {}).get("message_id")
 

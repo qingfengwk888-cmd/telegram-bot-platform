@@ -66,6 +66,7 @@ async def platform_webhook(request: Request):
     try:
         update = await request.json()
 
+
         if await is_duplicate_update("platform", update.get("update_id")):
             return {"ok": True, "ignored": "duplicate_update"}
 
