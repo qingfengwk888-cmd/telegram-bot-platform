@@ -54,7 +54,7 @@ async def handle_user_message(msg: dict, bot: dict) -> None:
         })
         return
 
-    await refresh_lock_if_current(bot["tenantId"], admin_chat_id, int(user_id))
+    await refresh_lock_if_current(bot["tenantId"], admin_chat_id, "user_chat")
 
     await forward_user_message_to_admin_and_ack(
         msg=msg,

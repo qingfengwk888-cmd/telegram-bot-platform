@@ -29,7 +29,15 @@ async def handle_admin_message(msg: dict, bot: dict) -> None:
             "message_id": msg["message_id"],
         })
 
-        await set_current_lock(bot["tenantId"], admin_chat_id, int(target_user_id))
+        await set_current_lock(
+            bot["tenantId"],
+            admin_chat_id,
+            {
+                "type": "user_chat",
+                "user_id": int(target_user_id),
+            },
+            ttl_seconds=600,
+        )
 
         await tg(bot["botToken"], "sendMessage", {
             "chat_id": admin_chat_id,
@@ -37,16 +45,38 @@ async def handle_admin_message(msg: dict, bot: dict) -> None:
         })
         return
 
-    locked_user_id = await get_current_lock(bot["tenantId"], admin_chat_id)
-    if not locked_user_id:
+    lock = await get_current_lock(bot["tenantId"], admin_chat_id)
+    if not lock:
         await tg(bot["botToken"], "sendMessage", {
             "chat_id": admin_chat_id,
             "text": "⚠️ 请先回复某条用户消息来锁定聊天对象，然后才能直接连续发送。",
         })
         return
 
+    if isinstance(lock, dict):
+        locked_user_id = lock.get("user_id")
+    else:
+        locked_user_id = lock
+
+    if not locked_user_id:
+        await tg(bot["botToken"], "sendMessage", {
+            "chat_id": admin_chat_id,
+            "text": "⚠️ 当前聊天对象异常，请重新回复某条用户消息来锁定。",
+        })
+        return
+
     await tg(bot["botToken"], "copyMessage", {
-        "chat_id": locked_user_id,
+        "chat_id": int(locked_user_id),
         "from_chat_id": admin_chat_id,
         "message_id": msg["message_id"],
     })
+
+    await set_current_lock(
+        bot["tenantId"],
+        admin_chat_id,
+        {
+            "type": "user_chat",
+            "user_id": int(locked_user_id),
+        },
+        ttl_seconds=600,
+    )

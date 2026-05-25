@@ -38,11 +38,18 @@ def should_handle_as_admin_message(msg: dict) -> bool:
     text = str(msg.get("text") or "").strip()
     replied = msg.get("reply_to_message")
 
-    # 只有这些场景才走管理员逻辑
     if replied:
         return True
 
     if text in {"拉黑", "解黑"}:
+        return True
+
+    # 管理员直接给租户机器人发普通消息时，也进入管理员回复逻辑；
+    # 是否存在当前锁定用户，由 admin_message_service 再判断。
+    if text and not text.startswith("/"):
+        return True
+
+    if any(msg.get(k) for k in ["photo", "video", "document", "voice", "audio", "sticker", "animation"]):
         return True
 
     return False
